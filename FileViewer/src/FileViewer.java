@@ -27,6 +27,7 @@
 //	4 byte float
 //	8 byte float
 //	bit values
+//	Unicode Value if UTF-8, etc.
 //
 //	hex offset in to the file (the "position" in hex.)
 //
@@ -109,7 +110,6 @@ import javax.swing.LayoutStyle.ComponentPlacement;
 public class FileViewer extends JFrame {
 	private JPanel contentPane;
 	private JTextField jFileName;
-	private JTextArea taAscii = new JTextArea();
 	private JTextArea taPosition = new JTextArea();
 	private JTextArea taHex = new JTextArea();
 	private JTextField tfAddress;
@@ -120,10 +120,11 @@ public class FileViewer extends JFrame {
 	private int dataRows = 16;
 	private int dataExtra = 7;
 	int fntSzUtf8 = 18;
-	int fntSzAscii = 18;
+	int fntSzHex = 16;
+//	int fntSzAscii = 18;
 	private int dataPage = dataCols * dataRows;
 	Font fntUtf8 = new Font("Lucida", Font.PLAIN, fntSzUtf8);
-	Font fnHAscii = new Font("Lucida Console", Font.PLAIN, fntSzAscii);
+//	Font fnHAscii = new Font("Lucida Console", Font.PLAIN, fntSzAscii);
 	String[] accumUtf8a = new String[dataCols];
     GraphicsArea cmpUtf8 = new GraphicsArea();
 	
@@ -156,7 +157,7 @@ public class FileViewer extends JFrame {
 
 		setTitle("File Viewer Utility");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setBounds(100, 100, 993, 450);
+		setBounds(100, 100, 1055, 450);
 		contentPane = new JPanel();
 		contentPane.setAutoscrolls(true);
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
@@ -360,7 +361,7 @@ public class FileViewer extends JFrame {
 		pnlPostion.setLayout(new BorderLayout(2, 2));
 		JLabel lblPosition = new JLabel("Position");
 		pnlPostion.add(lblPosition, BorderLayout.NORTH);
-		taPosition.setFont(new Font("Courier New", Font.PLAIN, 14));
+		taPosition.setFont(new Font("Courier New", Font.PLAIN, fntSzHex));
 		taPosition.setRows(dataRows);
 		taPosition.setColumns(12);
 		pnlPostion.add(taPosition);
@@ -372,22 +373,10 @@ public class FileViewer extends JFrame {
 		pnlHex.setLayout(new BorderLayout(2, 2));
 		JLabel lblHex = new JLabel("Hex");
 		pnlHex.add(lblHex, BorderLayout.NORTH);
-		taHex.setFont(new Font("Courier New", Font.PLAIN, 14));
+		taHex.setFont(new Font("Courier New", Font.PLAIN, fntSzHex));
 		taHex.setRows(dataRows);
 		taHex.setColumns(54);
 		pnlHex.add(taHex);
-
-//----------------------------------------------------------------------------------------
-//											ascii
-//------------------------------------------^^--------------------------------------------
-		JPanel pnlAscii = new JPanel();
-		pnlAscii.setLayout(new BorderLayout(2, 2));
-		JLabel lblAscii = new JLabel("Ascii");
-		pnlAscii.add(lblAscii, BorderLayout.NORTH);
-		taAscii.setFont(fnHAscii);
-		taAscii.setRows(dataRows);
-		taAscii.setColumns(dataRows);
-		pnlAscii.add(taAscii);
 		
 //----------------------------------------------------------------------------------------
 //		utf-8
@@ -407,38 +396,33 @@ public class FileViewer extends JFrame {
 			gl_contentPane.createParallelGroup(Alignment.LEADING)
 				.addGroup(gl_contentPane.createSequentialGroup()
 					.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
-						.addComponent(pnlFile, GroupLayout.PREFERRED_SIZE, 821, GroupLayout.PREFERRED_SIZE)
 						.addGroup(gl_contentPane.createSequentialGroup()
 							.addContainerGap()
 							.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
-								.addComponent(pnlNav, GroupLayout.DEFAULT_SIZE, 947, Short.MAX_VALUE)
+								.addComponent(pnlNav, GroupLayout.DEFAULT_SIZE, 857, Short.MAX_VALUE)
 								.addGroup(gl_contentPane.createSequentialGroup()
 									.addComponent(pnlPostion, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
 									.addPreferredGap(ComponentPlacement.UNRELATED)
-									.addComponent(pnlHex, GroupLayout.PREFERRED_SIZE, 357, GroupLayout.PREFERRED_SIZE)
+									.addComponent(pnlHex, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
 									.addGap(10)
-									.addComponent(pnlAscii, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-									.addPreferredGap(ComponentPlacement.UNRELATED)
-									.addComponent(pnlGraph, GroupLayout.DEFAULT_SIZE, 280, Short.MAX_VALUE)))))
+									.addComponent(pnlGraph, GroupLayout.DEFAULT_SIZE, 331, Short.MAX_VALUE))))
+						.addComponent(pnlFile, GroupLayout.DEFAULT_SIZE, 897, Short.MAX_VALUE))
 					.addContainerGap())
 		);
 		gl_contentPane.setVerticalGroup(
 			gl_contentPane.createParallelGroup(Alignment.LEADING)
 				.addGroup(gl_contentPane.createSequentialGroup()
 					.addComponent(pnlFile, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+					.addPreferredGap(ComponentPlacement.RELATED)
 					.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
 						.addGroup(gl_contentPane.createSequentialGroup()
 							.addGap(5)
 							.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
-								.addGroup(gl_contentPane.createSequentialGroup()
-									.addPreferredGap(ComponentPlacement.UNRELATED)
-									.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
-										.addComponent(pnlHex, GroupLayout.DEFAULT_SIZE, 331, Short.MAX_VALUE)
-										.addComponent(pnlPostion, GroupLayout.DEFAULT_SIZE, 331, Short.MAX_VALUE)))
-								.addComponent(pnlAscii, GroupLayout.DEFAULT_SIZE, 331, Short.MAX_VALUE)))
+								.addComponent(pnlHex, GroupLayout.DEFAULT_SIZE, 330, Short.MAX_VALUE)
+								.addComponent(pnlPostion, GroupLayout.DEFAULT_SIZE, 330, Short.MAX_VALUE)))
 						.addGroup(gl_contentPane.createSequentialGroup()
 							.addGap(23)
-							.addComponent(pnlGraph, GroupLayout.DEFAULT_SIZE, 311, Short.MAX_VALUE)))
+							.addComponent(pnlGraph, GroupLayout.DEFAULT_SIZE, 312, Short.MAX_VALUE)))
 					.addPreferredGap(ComponentPlacement.UNRELATED)
 					.addComponent(pnlNav, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
 		);
@@ -508,8 +492,8 @@ public class FileViewer extends JFrame {
 		taPosition.paintImmediately(0, 0, taPosition.getWidth(), taPosition.getHeight());
 		taHex.setText(accumHex);
 		taHex.paintImmediately(0, 0, taHex.getWidth(), taHex.getHeight());
-		taAscii.setText(accumAscii);
-		taAscii.paintImmediately(0, 0, taAscii.getWidth(), taAscii.getHeight());
+//		taAscii.setText(accumAscii);
+//		taAscii.paintImmediately(0, 0, taAscii.getWidth(), taAscii.getHeight());
 		cmpUtf8.repaint();
 
 
@@ -624,10 +608,10 @@ public class FileViewer extends JFrame {
 		public void paintComponent(Graphics g) {
 			String tempStr;
 			int left, top, width, height;
-			left = 4;
-			top = 0;
-			width = 270;
-			height = 300;
+			left = 8;
+			top = -4;
+			width = (fntSzUtf8 + 2) * dataCols;
+			height = (fntSzUtf8 + 2) * dataRows;
 			g.setColor(Color.WHITE);
 			g.fillRect(left, top, width, height);
 			g.setColor(Color.BLACK);
@@ -635,7 +619,7 @@ public class FileViewer extends JFrame {
 				tempStr = accumUtf8a[i];
 				if (tempStr == null) { continue; }
 				for (int j = 0; j < tempStr.length(); j++) {
-					g.drawString(tempStr.substring(j, j+1), (j+1)*(fntSzUtf8 - 2), (i+1)*fntSzUtf8);
+					g.drawString(tempStr.substring(j, j+1), (j+1)*(fntSzUtf8+1), (i+1)*(fntSzUtf8+1)-4);
 				}
 			}
 		}
