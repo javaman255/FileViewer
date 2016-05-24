@@ -467,7 +467,8 @@ public class FileViewer extends JFrame {
 			dispPos += dataCols;
 			inPos += dataCols;
 		}
-		
+		accumPos = accumPos.substring(0,accumPos.length() - 1);
+		accumHex = accumHex.substring(0,accumHex.length() - 1);
 //	move strings to the output screen
 		int i, j;
 		String tempStr;
