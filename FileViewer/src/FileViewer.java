@@ -198,7 +198,7 @@ public class FileViewer extends JFrame {
 					return;
 				}
 				try {
-					raf = new RandomAccessFile(fromFile, "rw");
+					raf = new RandomAccessFile(fromFile, "r");
 				} catch (FileNotFoundException e1) {
 					e1.printStackTrace();
 				}
