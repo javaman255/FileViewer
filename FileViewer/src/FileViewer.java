@@ -5,22 +5,33 @@
 //	This is a stand-alone utility which displays the contents of a file in hex and in
 //	UTF-8.
 //
-//	Problems:
-//	If the file is less than 256 bytes long, can't position to anything other than 0.
-//	Doesn't respond appropriately to resizing the window.
-//	Since it is currently read only, should not be able to write in the windows, though
-//		want to be able to copy text to the clipboard.
-//	"Grey out" navigation buttons until a file is opened.
-//	"Go To" is taking way too long.
+//	Bugs:
 //
 //
 //	Enhancements:
+//	Remember the last directory that the user opened and use that for starting point.
+//	Add support for UTF-16, etc.
+//	Add ability to resize window and the components will all resize appropriately.
+//	Add ability to select text from the screen.
+//	Grey out the unused right hand portion of the UTF-8 panel.
+//	Add hex offset in to the file (the "position" in hex.)
+//	ALlow to enter hex address in the Go To field.
+//	Catch UTF-8 errors and display a period ('.').
 //	Add a search function.
 //	Add ability to edit the file in hex, ASCII or UTF-8.  Inserts near the beginning of
 //		very large files will be slow, don't do it one character at a time.  Have a
 //		separate field where you type the text to be entered.  Program can then move every
 //		thing up length() bytes at once, rather than once for each byte.
-//	Remember the last directory that the user opened and use that for starting point.
+//	Allow user to specify the encoding.
+//	Allow user to select a font.
+//	Support a .ini file to srore user's choices.
+//
+//	Fixed:
+//	Navigate by increments +3, -127.  Say we know records are 127 bytes long, By putting
+//		+127 in the Goto field, and repetaedly pressing <Go To>, I can step throuth my
+//		file a record at a time.
+//	Disable resizeing window (for now);
+//	Grey out navigation controls until a file is opened.
 //
 //	Other Windows:
 //	1 byte integer (signed and unsigned)
@@ -32,7 +43,6 @@
 //	bit values
 //	Unicode Value if UTF-8, etc.
 //
-//	hex offset in to the file (the "position" in hex.)
 //
 //	I don't see any reason (other than some dumb language restraint) that any
 //		of these should have to begin on any particular byte boundary.  That means a lot 
@@ -46,28 +56,7 @@
 //	Maybe user selects a location in the hex or ascii portion and selects all the ways he
 //		wants the data beginning at that address to be displayed.
 //
-//	A couple things:
-//		make variables of the width and height of the display so screen can stretch
-//			in the future.
-//		Add a read-ahead buffer so that if I read the first byte of a UTF-8 character, I
-//			can display it.  Same for displaying int, long, float, etc.
-//			Buffer needs to be at least 7 bytes.  If I read an extra rows worth of data,
-//			I can pass two rows to the routine and just stop after one.  Means that
-//			screen cannot show less than 8 bytes per row.  Also need a read-behind buffer
-//			of the same size.  Use the before buffer to get synchronized.  Use the after
-//			buffer to finish the last charactter.  First and last lines will be messy to
-//			code.
-//		Catch UTF-8 errors and display a period ('.').
-//		Construct UTF-8 display one character at a time.  Keep track of buffer position
-//			and display position separately, show the value in the position of the first
-//			byte making up the character while increment display by only one position
-//			regardless of the number of bytes consumed from the buffer.  Ie, in Chinese
-//			text, for instance, I should  not display the character followed by three 
-//			periods just because the character takes 4 bytes to store.
-//			characters in the utf-8 window to be up against each other, not spaced out
-//			across the line.  But characters should be displayed on the same "line" as
-//			the corresponding hex, so there is a chance to find your way back and forth.
-//			Selecting a utf-8 character could highlight the corresponding hex display.
+//	Comment:
 //		Using graphics to print the UTF-8.  I couldn't find a font that was, free,
 //			universal, monospace and contained the majority of the unicode characters.  I
 //			used Graphics in order to emulate a monospaced font.  That gave me a lot of
@@ -116,6 +105,14 @@ public class FileViewer extends JFrame {
 	private JTextArea taPosition = new JTextArea();
 	private JTextArea taHex = new JTextArea();
 	private JTextField tfAddress;
+	
+	JButton btnGoTo = new JButton("Go To");
+	JButton btnStart = new JButton("|<");
+	JButton btnPageUp = new JButton("<<");
+	JButton btnLineUp = new JButton("<");
+	JButton btnLineDown = new JButton(">");
+	JButton btnPageDown = new JButton(">>");
+	JButton btnEnd = new JButton(">|");
 
 	private RandomAccessFile raf = null;
 	private int requestCols = 16;
@@ -141,6 +138,7 @@ public class FileViewer extends JFrame {
 				try {
 					FileViewer frame = new FileViewer();
 					frame.setVisible(true);
+					frame.setResizable(false);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -207,6 +205,13 @@ public class FileViewer extends JFrame {
 				} catch (IOException e1) {
 					e1.printStackTrace();
 				}
+				btnGoTo.setEnabled(true);
+				btnStart.setEnabled(true);
+				btnPageUp.setEnabled(true);
+				btnLineUp.setEnabled(true);
+				btnLineDown.setEnabled(true);
+				btnPageDown.setEnabled(true);
+				btnEnd.setEnabled(true);
 				requestPos = 0;
 				display();
 			}
@@ -227,14 +232,43 @@ public class FileViewer extends JFrame {
 //----------------------------------------------------------------------------------------
 //										btnGoTo
 //------------------------------------------^^--------------------------------------------
-		JButton btnGoTo = new JButton("Go To");
+		btnGoTo.setEnabled(false);
 		btnGoTo.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				long lngAddr;
+				
+				String strSign;
+				String strIncr;
+				long lngIncr;
+				
 				String strAddr = "";
 				strAddr = tfAddress.getText();
 				strAddr = strAddr.trim();
 				strAddr = strAddr.replace(",", "");
+				
+				strSign = strAddr.substring(0, 1);
+				if ((strSign.equals("+")) || (strSign.equals("-"))) {
+					strIncr = strAddr.substring(1, strAddr.length());
+					if (isInteger(strIncr)) {
+						lngIncr = Long.parseLong(strIncr);
+						if (strSign.equals("+")) {
+							lngAddr = requestPos + lngIncr;
+						} else {
+							lngAddr = requestPos - lngIncr;
+						}
+						if (lngAddr > (rafLen - requestPage)) {
+							lngAddr = rafLen - requestPage;
+						}
+						if (lngAddr < 0) {
+							lngAddr = 0;
+						}
+						requestPos = lngAddr;
+						display();
+						
+					} else {
+//						continue;
+					}
+				} else
 				if (isInteger(strAddr)) {
 					lngAddr = Long.parseLong(strAddr);
 					if (lngAddr > (rafLen - requestPage)) {
@@ -253,7 +287,7 @@ public class FileViewer extends JFrame {
 //----------------------------------------------------------------------------------------
 //										btnStart
 //------------------------------------------^^--------------------------------------------
-		JButton btnStart = new JButton("|<");
+		btnStart.setEnabled(false);
 		btnStart.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				requestPos = 0;
@@ -265,7 +299,7 @@ public class FileViewer extends JFrame {
 //----------------------------------------------------------------------------------------
 //										btnPageUp
 //------------------------------------------^^--------------------------------------------
-		JButton btnPageUp = new JButton("<<");
+		btnPageUp.setEnabled(false);
 		btnPageUp.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				requestPos -= requestPage;
@@ -280,7 +314,7 @@ public class FileViewer extends JFrame {
 //----------------------------------------------------------------------------------------
 //										btnLineUp
 //------------------------------------------^^--------------------------------------------
-		JButton btnLineUp = new JButton("<");
+		btnLineUp.setEnabled(false);
 		btnLineUp.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				requestPos -= requestCols;
@@ -295,7 +329,7 @@ public class FileViewer extends JFrame {
 //----------------------------------------------------------------------------------------
 //										btnLineDown
 //------------------------------------------^^--------------------------------------------
-		JButton btnLineDown = new JButton(">");
+		btnLineDown.setEnabled(false);
 		btnLineDown.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				requestPos += requestCols;
@@ -313,7 +347,7 @@ public class FileViewer extends JFrame {
 //----------------------------------------------------------------------------------------
 //										btnPageDown
 //------------------------------------------^^--------------------------------------------
-		JButton btnPageDown = new JButton(">>");
+		btnPageDown.setEnabled(false);
 		btnPageDown.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				requestPos += requestPage;
@@ -331,7 +365,7 @@ public class FileViewer extends JFrame {
 //----------------------------------------------------------------------------------------
 //										btnEnd
 //------------------------------------------^^--------------------------------------------
-		JButton btnEnd = new JButton(">|");
+		btnEnd.setEnabled(false);
 		btnEnd.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				requestPos = rafLen - requestPage;
@@ -487,11 +521,11 @@ public class FileViewer extends JFrame {
 			readIdx += uc.consumes;
 			if (readIdx < (preBuffLen + 1 )) { continue; }
 			s = uc.character;
-//			String a;
-//			a = showUsYourBits(s);
-//			if ((uc.consumes > 1) && (a.equalsIgnoreCase("0011 1111"))) {
-//				s = ".";
-//			}
+//String a;
+//a = showUsYourBits(s);
+//if ((uc.consumes > 1) && (a.equalsIgnoreCase("0011 1111"))) {
+//	s = ".";
+//}
 			dspIdx = readIdx - preBuffLen;
 			holdStr += s;
 			if (dspIdx < ((lineCnt + 1) * requestCols)) { continue; }
@@ -640,16 +674,16 @@ public class FileViewer extends JFrame {
 			tempStr = "0000000000" + "0000000000" + "0000000000" + "0000000000" + "0000000000" + "0000000000" + "0000";
 		} else if (inObj instanceof String) {
 			inString = inObj.toString();
-			byte[] ba;
-			ba = inString.getBytes();
+			char[] ca;
+			ca = inString.toCharArray();
 			tempStr = "";
-			for (int byteCnt = 0; byteCnt < ba.length; byteCnt++) {
-				inByte = ba[byteCnt];
-				for (int i = 0; i < 8; i++) {
-					if ((inByte & 0b10000000) == 0b10000000) { str += "1"; } else { str += "0"; }
-					inByte = (byte) (inByte << 1);
+			for (int charCnt = 0; charCnt < ca.length; charCnt++) {
+				inChar = ca[charCnt];
+				for (int i = 0; i < 16; i++) {
+					if ((inChar & 0b1000000000000000) == 0b1000000000000000) { str += "1"; } else { str += "0"; }
+					inChar = (char) (inChar << 1);
 				}
-				tempStr += "00000000";
+				tempStr += "0000000000" + "000000";
 			}
 			
 		}

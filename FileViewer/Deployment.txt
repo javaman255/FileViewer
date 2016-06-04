@@ -1,0 +1,31 @@
+Deployment
+
+Create jar file.
+Go to Navigator in Eclipse.
+Right click on the project.
+Select Export.
+Java -> Runnable Jar File.
+<Next>
+FileViewer (1) - FileViewer
+FileViewer \ FileViewer.jar
+Select "Package required libraries into generated jar"
+<Finish>
+"The file "F:\Development\Windows_Eclipse\git\FileViewer.jar' alreadey exists.  Do you want to overwrite it?
+<Yes>
+JAR export finished with warnings.  See details for additional information.
+<OK>
+
+Add any new files to the index.
+
+Compose the commit text.
+
+Commit
+Rigtht click on Project
+Select Team -> Commit
+Copy Commit Text into box.
+<Commit>
+
+Sent to GitHub
+Rigtht click on Project
+Select Team -> Remote -> Push
+
