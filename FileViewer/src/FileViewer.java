@@ -10,6 +10,9 @@
 //	Doesn't respond appropriately to resizing the window.
 //	Since it is currently read only, should not be able to write in the windows, though
 //		want to be able to copy text to the clipboard.
+//	"Grey out" navigation buttons until a file is opened.
+//	"Go To" is taking way too long.
+//
 //
 //	Enhancements:
 //	Add a search function.
@@ -115,17 +118,18 @@ public class FileViewer extends JFrame {
 	private JTextField tfAddress;
 
 	private RandomAccessFile raf = null;
-	private long filePos;
-	private int dataCols = 16;
-	private int dataRows = 16;
-	private int dataExtra = 7;
+	private int requestCols = 16;
+	private int requestRows = 16;
+	private long requestPos;
+	long readPos;
+	long readLen;
+	private long rafLen;
+	private int buffLen = 3;
 	int fntSzUtf8 = 18;
 	int fntSzHex = 16;
-//	int fntSzAscii = 18;
-	private int dataPage = dataCols * dataRows;
+	private int requestPage = requestCols * requestRows;
 	Font fntUtf8 = new Font("Lucida", Font.PLAIN, fntSzUtf8);
-//	Font fnHAscii = new Font("Lucida Console", Font.PLAIN, fntSzAscii);
-	String[] accumUtf8a = new String[dataCols];
+	String[] strUtf8 = new String[requestRows];
     GraphicsArea cmpUtf8 = new GraphicsArea();
 	
 //****************************************************************************************
@@ -199,10 +203,11 @@ public class FileViewer extends JFrame {
 				}
 				try {
 					raf = new RandomAccessFile(fromFile, "r");
-				} catch (FileNotFoundException e1) {
+					rafLen = raf.length();
+				} catch (IOException e1) {
 					e1.printStackTrace();
 				}
-				filePos = 0;
+				requestPos = 0;
 				display();
 			}
 		});
@@ -232,17 +237,13 @@ public class FileViewer extends JFrame {
 				strAddr = strAddr.replace(",", "");
 				if (isInteger(strAddr)) {
 					lngAddr = Long.parseLong(strAddr);
-					try {
-						if (lngAddr > (raf.length() - dataPage)) {
-							lngAddr = raf.length() - dataPage;
-						}
-						if (lngAddr < 0) {
-							lngAddr = 0;
-						}
-					} catch (IOException e) {
-						e.printStackTrace();
+					if (lngAddr > (rafLen - requestPage)) {
+						lngAddr = rafLen - requestPage;
 					}
-					filePos = lngAddr;
+					if (lngAddr < 0) {
+						lngAddr = 0;
+					}
+					requestPos = lngAddr;
 					display();
 				}
 			}
@@ -255,7 +256,7 @@ public class FileViewer extends JFrame {
 		JButton btnStart = new JButton("|<");
 		btnStart.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				filePos = 0;
+				requestPos = 0;
 				display();
 			}
 		});
@@ -267,9 +268,9 @@ public class FileViewer extends JFrame {
 		JButton btnPageUp = new JButton("<<");
 		btnPageUp.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				filePos -= dataPage;
-				if (filePos < 0) {
-					filePos = 0;
+				requestPos -= requestPage;
+				if (requestPos < 0) {
+					requestPos = 0;
 				}
 				display();
 			}
@@ -282,9 +283,9 @@ public class FileViewer extends JFrame {
 		JButton btnLineUp = new JButton("<");
 		btnLineUp.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				filePos -= dataCols;
-				if (filePos < 0) {
-					filePos = 0;
+				requestPos -= requestCols;
+				if (requestPos < 0) {
+					requestPos = 0;
 				}
 				display();
 			}
@@ -297,16 +298,12 @@ public class FileViewer extends JFrame {
 		JButton btnLineDown = new JButton(">");
 		btnLineDown.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				filePos += dataCols;
-				try {
-					if (filePos > (raf.length() - dataPage)) {
-						filePos = raf.length() - dataPage;
-					}
-				} catch (IOException e) {
-					e.printStackTrace();
+				requestPos += requestCols;
+				if (requestPos > (rafLen - requestPage)) {
+					requestPos = rafLen - requestPage;
 				}
-				if (filePos < 0) {
-					filePos = 0;
+				if (requestPos < 0) {
+					requestPos = 0;
 				}
 				display();
 			}
@@ -319,16 +316,12 @@ public class FileViewer extends JFrame {
 		JButton btnPageDown = new JButton(">>");
 		btnPageDown.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				filePos += dataPage;
-				try {
-					if (filePos > (raf.length() - dataPage)) {
-						filePos = raf.length() - dataPage;
-					}
-				} catch (IOException e) {
-					e.printStackTrace();
+				requestPos += requestPage;
+				if (requestPos > (rafLen - requestPage)) {
+					requestPos = rafLen - requestPage;
 				}
-				if (filePos < 0) {
-					filePos = 0;
+				if (requestPos < 0) {
+					requestPos = 0;
 				}
 				display();
 			}
@@ -341,13 +334,9 @@ public class FileViewer extends JFrame {
 		JButton btnEnd = new JButton(">|");
 		btnEnd.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				try {
-					filePos = raf.length() - dataPage;
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-				if (filePos < 0) {
-					filePos = 0;
+				requestPos = rafLen - requestPage;
+				if (requestPos < 0) {
+					requestPos = 0;
 				}
 				display();
 			}
@@ -362,7 +351,7 @@ public class FileViewer extends JFrame {
 		JLabel lblPosition = new JLabel("Position");
 		pnlPostion.add(lblPosition, BorderLayout.NORTH);
 		taPosition.setFont(new Font("Courier New", Font.PLAIN, fntSzHex));
-		taPosition.setRows(dataRows);
+		taPosition.setRows(requestRows);
 		taPosition.setColumns(12);
 		pnlPostion.add(taPosition);
 
@@ -374,7 +363,7 @@ public class FileViewer extends JFrame {
 		JLabel lblHex = new JLabel("Hex");
 		pnlHex.add(lblHex, BorderLayout.NORTH);
 		taHex.setFont(new Font("Courier New", Font.PLAIN, fntSzHex));
-		taHex.setRows(dataRows);
+		taHex.setRows(requestRows);
 		taHex.setColumns(54);
 		pnlHex.add(taHex);
 		
@@ -386,7 +375,6 @@ public class FileViewer extends JFrame {
 	    cmpUtf8.setFont(fntUtf8);
 	    pnlGraph.setBackground(Color.WHITE);;
 	    pnlGraph.add(cmpUtf8);
-
 	    
 //----------------------------------------------------------------------------------------
 //		Horizontal
@@ -409,6 +397,9 @@ public class FileViewer extends JFrame {
 						.addComponent(pnlFile, GroupLayout.DEFAULT_SIZE, 897, Short.MAX_VALUE))
 					.addContainerGap())
 		);
+//----------------------------------------------------------------------------------------
+//		Vertical
+//------------------------------------------^^--------------------------------------------
 		gl_contentPane.setVerticalGroup(
 			gl_contentPane.createParallelGroup(Alignment.LEADING)
 				.addGroup(gl_contentPane.createSequentialGroup()
@@ -427,92 +418,126 @@ public class FileViewer extends JFrame {
 					.addComponent(pnlNav, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
 		);
 		
-		
-		
 		contentPane.setLayout(gl_contentPane);
-
 	}
 
 //****************************************************************************************
 //										display()
 //******************************************^^********************************************
 	public void display() {
-		byte[] byteArrayb = new byte[(dataCols * dataRows) + Math.max(dataExtra, dataCols)];
 		int lineCnt = 0;
 		DecimalFormat formatter = new DecimalFormat("#,##0");
 		long dispPos;
 		long inPos;
-		String accumPos = "";
-		String accumHex = "";
-		String accumAscii = "";
+		int preBuffLen;
+		String strPos = "";
+		String strHex = "";
+//		int mainArrLen;
 		
-// Initialize accumUtf8 array
-		for(int i = 0; i < dataRows; i++) {
-			accumUtf8a[i] = "";
+		readPos = Math.max(0, requestPos - buffLen);
+		preBuffLen = (int) (requestPos - readPos);
+		readLen = preBuffLen + requestPage + buffLen;
+		if (readLen + readPos > rafLen) {
+			readLen = rafLen - readPos;
+		}
+//		readLen = Math.min((requestCols * requestRows) + (buffLen * 2), (rafLen - requestPos) );
+//		mainArrLen = (int) Math.min(readLen, rafLen);
+		byte[] rafArray = new byte[(int) readLen];
+		byte[] rowBytArr = new byte[requestCols];
+
+//----------------------------------------------------------------------------------------
+//								Initialize accumUtf8 array
+//------------------------------------------^^--------------------------------------------
+		for(int i = 0; i < requestRows; i++) {
+			strUtf8[i] = "";
 		}
 
-//	Format strings for display
-		dispPos = filePos;
-		byteArrayb = fileReader(raf, dispPos, (dataCols * dataRows) + Math.max(dataExtra, dataCols));
+//----------------------------------------------------------------------------------------
+//										Read File
+//------------------------------------------^^--------------------------------------------
+		rafArray = fileReader(raf, rafArray);
+		dispPos = requestPos;
 		inPos = 0;
-		for (lineCnt = 0; lineCnt < dataRows; lineCnt++) {
-			byte[] b1 = new byte[dataCols];
-			for (int i = 0; i < dataCols; i++) {
-				b1[i] = byteArrayb[(int)inPos + i];
-				}
-			accumPos += "" + formatter.format(dispPos) + "\n";
-			accumHex += bytesToHex(b1) + "\n";
-			accumAscii += bytesToAscii(b1) + "\n";
-			accumUtf8a[lineCnt] += bytesToUtf8(b1) + "";
-			dispPos += dataCols;
-			inPos += dataCols;
-		}
-		accumPos = accumPos.substring(0,accumPos.length() - 1);
-		accumHex = accumHex.substring(0,accumHex.length() - 1);
-//	move strings to the output screen
-		int i, j;
-		String tempStr;
-		String holdStr;
-		for(i = 0; i < dataRows; i++) {
-			tempStr = "";
-			tempStr = accumUtf8a[i];
-			for (j = 0; j < tempStr.length(); j++) {
-				holdStr = tempStr.substring(j, accumUtf8a[i].length());
-				if (holdStr.length() > 1) {
-					holdStr = tempStr.substring(0, 1);
-				}
-				if (holdStr.length() < 1) {
-					holdStr = ".";
-				}
-
+		
+//----------------------------------------------------------------------------------------
+//								Format strings for display
+//------------------------------------------^^--------------------------------------------
+		for (lineCnt = 0; lineCnt < requestRows; lineCnt++) {
+			for (int i = (int) (readPos - readPos); i < requestCols; i++) {
+				rowBytArr[i] = rafArray[(int)inPos + i];
 			}
+			strPos += "" + formatter.format(dispPos) + "\n";
+			strHex += bytesToHex(rowBytArr) + "\n";
+			dispPos += requestCols;
+			inPos += requestCols;
 		}
-
-//	move strings to the output screen
-		taPosition.setText(accumPos);
+		strPos = strPos.substring(0,strPos.length() - 1);
+		strHex = strHex.substring(0,strHex.length() - 1);
+		
+//----------------------------------------------------------------------------------------
+//							Format strings for UTF-8  Display
+//------------------------------------------^^--------------------------------------------
+		int dspIdx = 0;
+		String holdStr = "";
+		String s = "";
+		lineCnt = 0;
+		int readIdx;
+  		for (readIdx = 0; readIdx < rafArray.length; ) {
+			Utf8Char uc = new Utf8Char(rafArray, readIdx);
+			readIdx += uc.consumes;
+			if (readIdx < (preBuffLen + 1 )) { continue; }
+			s = uc.character;
+//			String a;
+//			a = showUsYourBits(s);
+//			if ((uc.consumes > 1) && (a.equalsIgnoreCase("0011 1111"))) {
+//				s = ".";
+//			}
+			dspIdx = readIdx - preBuffLen;
+			holdStr += s;
+			if (dspIdx < ((lineCnt + 1) * requestCols)) { continue; }
+			if (lineCnt < requestRows) {
+				strUtf8[lineCnt] = holdStr;
+				holdStr = "";
+			}
+			lineCnt++;
+		}
+		
+//----------------------------------------------------------------------------------------
+//							move strings to the output screen
+//------------------------------------------^^--------------------------------------------
+		taPosition.setText(strPos);
 		taPosition.paintImmediately(0, 0, taPosition.getWidth(), taPosition.getHeight());
-		taHex.setText(accumHex);
+		taHex.setText(strHex);
 		taHex.paintImmediately(0, 0, taHex.getWidth(), taHex.getHeight());
-//		taAscii.setText(accumAscii);
-//		taAscii.paintImmediately(0, 0, taAscii.getWidth(), taAscii.getHeight());
 		cmpUtf8.repaint();
-
 
 	}
 
 //****************************************************************************************
 //										fileReader()
 //******************************************^^********************************************
-	public static byte[] fileReader(RandomAccessFile raf, long pos, int dspLen) {
-		byte[] bytes = new byte[dspLen];
-
+	public  byte[] fileReader(RandomAccessFile raf, byte[] inArray) {
+		int len1 = 0;
+		int len2 = 0;
+		len1 = Math.min(inArray.length, (int) ((rafLen - readPos)));
+		byte[] outArray = new byte[len1];
+		
 		try {
-			raf.seek(pos);
-			raf.read(bytes, 0, dspLen);
+			raf.seek(readPos);
+			len2 = raf.read(outArray);
+			if (len1 != len2) {
+				System.out.println("len1 = " + len1);
+				System.out.println("len2 = " + len2);
+				int a = 0;
+				int b = 0;
+				a /= b;
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
-		return bytes;
+		return outArray;
 	}
 
 //****************************************************************************************
@@ -542,52 +567,6 @@ public class FileViewer extends JFrame {
 		str2 = str2.substring(0, str2.length() - 3);
 		return str2;
 	}
-
-//****************************************************************************************
-//									bytesToAscii()
-//******************************************^^********************************************
-	public static String bytesToAscii(byte[] bytes) {
-		String strOut = "";
-		try {
-			String strIn = new String(bytes, "US-ASCII");
-			int len = strIn.length();
-			for (int i = 0; i < len; i++) {
-				char tempChar;
-				tempChar = strIn.charAt(i);
-				if ((tempChar < 32) || (tempChar > 127)) {
-					strOut += ".";
-				}
-				else {
-					strOut += strIn.substring(i, i + 1);
-				}
-			}
-		} catch (UnsupportedEncodingException e) {
-			e.printStackTrace();
-		}
-		return strOut;
-	}
-
-//****************************************************************************************
-//									bytesToUtf8()
-//******************************************^^********************************************
-	public static String bytesToUtf8(byte[] bytes) {
-		String strOut = "";
-		try {
-			String strIn = new String(bytes, "UTF-8");
-			strOut = strIn;
-		} catch (UnsupportedEncodingException e) {
-			e.printStackTrace();
-		}
-		return strOut;
-	}
-	
-//****************************************************************************************
-//	byteUtf8a()
-//******************************************^^********************************************
-	public static String byteUtf8a(ByteBuffer bytes) {
-		String s = "";
-		return s;
-	}
 	
 //****************************************************************************************
 //										isInteger()
@@ -602,8 +581,96 @@ public class FileViewer extends JFrame {
 	}
 	
 //****************************************************************************************
-//										MyCanvas()
+//											arrayPiece()
 //******************************************^^********************************************
+	public static byte[] arrayPiece(byte[] inBytes, int copyStart, int copyLen) {
+		byte[] returnArray = new byte[1];
+		returnArray = new byte[copyLen];
+		int i;
+		int len;
+		
+		len = Math.min(copyLen, inBytes.length - copyStart);
+		for (i = 0; i < len; i++) {
+			returnArray[i] = inBytes[i + copyStart];
+		}
+		return returnArray;
+	}
+
+//****************************************************************************************
+//										dspBits()
+//	Constructs a String of 1's and 0's representing the bit pattern of the object.
+//	Accepts byte, char, int and long.
+//	Restrictions on which types can be used with bitwise operators prevents other object
+//		types from being available.  In particular, String, float, double and Object.
+//	I reverse the bytes because Intel has their expletive endians messed up.
+//  Maybe it's not an endian problem.  Can'g get any value from second byte.
+//******************************************^^********************************************
+	public static String showUsYourBits(Object inObj) {
+		String str = "";
+		String outStr = "";
+		byte inByte = 0;
+		char inChar = 0;
+		int inInt = 0;
+		long inLong = 0;
+		String tempStr = "";
+		int inSigLen;
+		String inString;
+		
+		if (inObj instanceof Byte) {
+			inByte = (byte) inObj;
+			for (int i = 0; i < 8; i++) {
+				if ((inByte & 0b10000000) == 0b10000000) { str += "1"; } else { str += "0"; }
+				inByte = (byte) (inByte << 1);
+			}
+			tempStr = "00000000";
+		} else if (inObj instanceof Character) {
+			inChar = (char) inObj;
+			for (int i = 0; i < 16; i++) {
+				if ((inChar & 0b1000000000000000) == 0b1000000000000000) { str += "1"; } else { str += "0"; }
+				inChar = (char) (inChar << 1);
+			}
+			tempStr = "0000000000" + "000000";
+		} else if (inObj instanceof Integer) {
+			inInt = (int) inObj;
+			str = Integer.toBinaryString(inInt);
+			tempStr = "0000000000" + "0000000000" + "0000000000" +"00";
+		} else if (inObj instanceof Long) {
+			inLong = (long) inObj;
+			str = Long.toBinaryString(inLong);
+			tempStr = "0000000000" + "0000000000" + "0000000000" + "0000000000" + "0000000000" + "0000000000" + "0000";
+		} else if (inObj instanceof String) {
+			inString = inObj.toString();
+			byte[] ba;
+			ba = inString.getBytes();
+			tempStr = "";
+			for (int byteCnt = 0; byteCnt < ba.length; byteCnt++) {
+				inByte = ba[byteCnt];
+				for (int i = 0; i < 8; i++) {
+					if ((inByte & 0b10000000) == 0b10000000) { str += "1"; } else { str += "0"; }
+					inByte = (byte) (inByte << 1);
+				}
+				tempStr += "00000000";
+			}
+			
+		}
+
+		inSigLen = tempStr.length() - str.length();
+		tempStr = tempStr.substring(0, inSigLen) + str;
+		outStr = "";
+		for (int i = 0; i < tempStr.length(); i+=4) {
+			outStr += tempStr.substring(i, i + 4);
+			outStr += " ";
+			if ((i + 4) % 8 == 0) { 
+				outStr += "~ ";
+			}
+		}
+		outStr = outStr.substring(0, outStr.length());
+		return outStr;
+	}
+	
+//XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+//										MyCanvas()
+//XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX^^XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	class GraphicsArea extends JComponent {
 		@Override
 		public void paintComponent(Graphics g) {
@@ -611,13 +678,13 @@ public class FileViewer extends JFrame {
 			int left, top, width, height;
 			left = 8;
 			top = -4;
-			width = (fntSzUtf8 + 2) * dataCols;
-			height = (fntSzUtf8 + 2) * dataRows;
+			width = (fntSzUtf8 + 2) * requestCols;
+			height = (fntSzUtf8 + 2) * requestRows;
 			g.setColor(Color.WHITE);
 			g.fillRect(left, top, width, height);
 			g.setColor(Color.BLACK);
-			for (int i = 0; i < dataCols; i++) {
-				tempStr = accumUtf8a[i];
+			for (int i = 0; i < requestRows; i++) {
+				tempStr = strUtf8[i];
 				if (tempStr == null) { continue; }
 				for (int j = 0; j < tempStr.length(); j++) {
 					g.drawString(tempStr.substring(j, j+1), (j+1)*(fntSzUtf8+1), (i+1)*(fntSzUtf8+1)-4);
@@ -625,6 +692,101 @@ public class FileViewer extends JFrame {
 			}
 		}
 	}
+	
+//XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+//									U t f 8 C h a r
+//XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX^^XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	class Utf8Char{
+		String character;
+		int consumes;
+		
+//****************************************************************************************
+//										Utf8Char
+//******************************************^^********************************************
+		public Utf8Char(byte[] bytes, int startPos) {
+			int expectedLen;
+			String holdStr;
+			
+			String display;
+			display = toBitString(bytes[startPos]);
+			
+//										Get Length
+//------------------------------------------^^--------------------------------------------
+			if		((bytes[startPos] & 0b10000000) == 0b00000000) expectedLen = 1;
+			else if ((bytes[startPos] & 0b11100000) == 0b11000000) expectedLen = 2;
+			else if ((bytes[startPos] & 0b11110000) == 0b11100000) expectedLen = 3;
+			else if ((bytes[startPos] & 0b11111000) == 0b11110000) expectedLen = 4;
+			else {
+				character = ".";
+				consumes = 1;
+				return;
+			}
+			
+			if (startPos + expectedLen > bytes.length) {
+				character = ".";
+				consumes = 1;
+				return;
+			}
+			
+//									Examine remaining bytes
+//------------------------------------------^^--------------------------------------------
+			for (int i = 1; i < expectedLen; i++) {
+				if ((bytes[startPos + i] & 0b11000000) != 0b10000000) {
+					character = ".";
+					consumes = 1;
+					return;
+				}
+			}
+			
+//									Copy to shorter array
+//------------------------------------------^^--------------------------------------------
+			byte[] holdByte = new byte[expectedLen];
+			for (int i = 0; i < expectedLen; i++) {
+				holdByte[i] = bytes[startPos + i];
+			}
+			
+//										Get Value
+//------------------------------------------^^--------------------------------------------
+			holdStr = bytesToUtf8(holdByte) + "";
+			character = holdStr;
+			consumes = expectedLen;
+		}
+		
+//****************************************************************************************
+//										bytesToUtf8()
+//******************************************^^********************************************
+		public String bytesToUtf8(byte[] bytes) {
+			String strOut = "";
+			try {
+				String strIn = new String(bytes, "UTF-8");
+				strOut = strIn;
+			} catch (UnsupportedEncodingException e) {
+				e.printStackTrace();
+			}
+			return strOut;
+		}
+		
+//****************************************************************************************
+//										toBitString()
+//******************************************^^********************************************
+		public String toBitString(byte inByte) {
+			String str;
+			
+			str = "";
+			if ((inByte & 0b10000000) == 0b10000000) { str += "1"; } else {str += "0"; }
+			if ((inByte & 0b01000000) == 0b01000000) { str += "1"; } else {str += "0"; }
+			if ((inByte & 0b00100000) == 0b00100000) { str += "1"; } else {str += "0"; }
+			if ((inByte & 0b00010000) == 0b00010000) { str += "1"; } else {str += "0"; }
+			if ((inByte & 0b00001000) == 0b00001000) { str += "1"; } else {str += "0"; }
+			if ((inByte & 0b00000100) == 0b00000100) { str += "1"; } else {str += "0"; }
+			if ((inByte & 0b00000010) == 0b00000010) { str += "1"; } else {str += "0"; }
+			if ((inByte & 0b00000001) == 0b00000001) { str += "1"; } else {str += "0"; }
+			
+			return str;
+		}
+			
+	}
+	
 }
 //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 //									E N D   O F   F I L E
