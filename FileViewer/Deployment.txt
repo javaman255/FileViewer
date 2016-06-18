@@ -1,13 +1,16 @@
 Deployment
 
+Remove debug code.
+Update comments: Bugs, Enhancements
+
 Create jar file.
 Go to Navigator in Eclipse.
 Right click on the project.
-Select Export.
+Select "Export".
 Java -> Runnable Jar File.
 <Next>
-FileViewer (1) - FileViewer
-FileViewer \ FileViewer.jar
+In DropDown, select "FileViewer (1) - FileViewer".
+Use name "FileViewer \ FileViewer.jar"
 Select "Package required libraries into generated jar"
 <Finish>
 "The file "F:\Development\Windows_Eclipse\git\FileViewer.jar' alreadey exists.  Do you want to overwrite it?
