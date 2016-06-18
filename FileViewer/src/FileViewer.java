@@ -70,36 +70,48 @@
 
 import java.awt.BorderLayout;
 import java.awt.EventQueue;
+
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
+import javax.swing.JLabel;
+import javax.swing.SwingConstants;
+import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
+import javax.swing.JTextPane;
+import javax.swing.JTextArea;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JFileChooser;
 import javax.swing.JTextField;
+import javax.swing.border.LineBorder;
+
+//import com.william_rice.FileInventory.DrawPanel;
+
+import javax.swing.ImageIcon;
+
+
+//import FileViewer3.GraphicsArea;
+//import FileViewer3.Utf8Char;
+
 import java.awt.Color;
-import java.awt.Container;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.Graphics;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.io.UnsupportedEncodingException;
-import java.nio.ByteBuffer;
 import java.text.DecimalFormat;
-import javax.swing.JFileChooser;
-import javax.swing.JLabel;
-import javax.swing.JButton;
-import javax.swing.JComponent;
-import javax.swing.JTextArea;
-import javax.swing.UIManager;
-import javax.swing.UnsupportedLookAndFeelException;
-import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.GridLayout;
-import javax.swing.GroupLayout;
-import javax.swing.GroupLayout.Alignment;
-import javax.swing.LayoutStyle.ComponentPlacement;
+import java.awt.Dimension;
 
+//XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+//										FileViewer
+//XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX^^XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 public class FileViewer extends JFrame {
+
 	private JPanel contentPane;
 	private JTextField jFileName;
 	private JTextArea taPosition = new JTextArea();
@@ -116,8 +128,11 @@ public class FileViewer extends JFrame {
 
 	private RandomAccessFile raf = null;
 	private int requestCols = 16;
+//	private int requestCols = 6;
 	private int requestRows = 16;
+//	private int requestRows = 3;
 	private long requestPos;
+	
 	long readPos;
 	long readLen;
 	private long rafLen;
@@ -127,8 +142,9 @@ public class FileViewer extends JFrame {
 	private int requestPage = requestCols * requestRows;
 	Font fntUtf8 = new Font("Lucida", Font.PLAIN, fntSzUtf8);
 	String[] strUtf8 = new String[requestRows];
-    GraphicsArea cmpUtf8 = new GraphicsArea();
-	
+//	GraphicsArea cmpUtf8 = new GraphicsArea();
+	GraphicsArea_1 cmpUtf8 = new GraphicsArea_1();
+
 //****************************************************************************************
 //											main
 //******************************************^^********************************************
@@ -138,7 +154,7 @@ public class FileViewer extends JFrame {
 				try {
 					FileViewer frame = new FileViewer();
 					frame.setVisible(true);
-					frame.setResizable(false);
+//					frame.setResizable(false);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -147,7 +163,7 @@ public class FileViewer extends JFrame {
 	}
 
 //****************************************************************************************
-//										FileViewer()
+//	FileViewer()
 //******************************************^^********************************************
 	public FileViewer() {
 		try {
@@ -159,17 +175,20 @@ public class FileViewer extends JFrame {
 
 		setTitle("File Viewer Utility");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setBounds(100, 100, 1055, 450);
+//		setBounds(100, 100, 504, 180);
+		setBounds(100, 100, 1033, 460);
 		contentPane = new JPanel();
-		contentPane.setAutoscrolls(true);
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
+		contentPane.setLayout(new BorderLayout(0, 0));
 		setContentPane(contentPane);
-
+		
+//========================================================================================
 		JPanel pnlFile = new JPanel();
-
-//****************************************************************************************
-//										btnFileDlg
-//******************************************^^********************************************
+		contentPane.add(pnlFile, BorderLayout.NORTH);
+		
+//----------------------------------------------------------------------------------------
+//		btnFileDlg
+//------------------------------------------^^--------------------------------------------
 		JButton btnFileDlg = new JButton("Browse...");
 		btnFileDlg.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
@@ -182,15 +201,16 @@ public class FileViewer extends JFrame {
 			}
 		});
 		pnlFile.add(btnFileDlg);
-
+		
 		JLabel lblNewLabel = new JLabel("File Name");
 		pnlFile.add(lblNewLabel);
+		
 		jFileName = new JTextField();
 		pnlFile.add(jFileName);
 		jFileName.setColumns(30);
-
+		
 //----------------------------------------------------------------------------------------
-//										btnOpen
+//		btnOpen
 //------------------------------------------^^--------------------------------------------
 		JButton btnOpen = new JButton("Open");
 		btnOpen.addActionListener(new ActionListener() {
@@ -217,20 +237,21 @@ public class FileViewer extends JFrame {
 			}
 		});
 		pnlFile.add(btnOpen);
-
+		
+//========================================================================================
 		JPanel pnlNav = new JPanel();
-		pnlNav.setLayout(new GridLayout(0, 8, 0, 0));
-
+		contentPane.add(pnlNav, BorderLayout.SOUTH);
+		
 //----------------------------------------------------------------------------------------
-//										tfAddress
+//		tfAddress
 //------------------------------------------^^--------------------------------------------
 		tfAddress = new JTextField();
 		tfAddress.setFont(new Font("Courier New", Font.PLAIN, 12));
 		pnlNav.add(tfAddress);
 		tfAddress.setColumns(12);
-
+		
 //----------------------------------------------------------------------------------------
-//										btnGoTo
+//		btnGoTo
 //------------------------------------------^^--------------------------------------------
 		btnGoTo.setEnabled(false);
 		btnGoTo.addActionListener(new ActionListener() {
@@ -245,17 +266,32 @@ public class FileViewer extends JFrame {
 				strAddr = tfAddress.getText();
 				strAddr = strAddr.trim();
 				strAddr = strAddr.replace(",", "");
-				
-				strSign = strAddr.substring(0, 1);
-				if ((strSign.equals("+")) || (strSign.equals("-"))) {
-					strIncr = strAddr.substring(1, strAddr.length());
-					if (isInteger(strIncr)) {
-						lngIncr = Long.parseLong(strIncr);
-						if (strSign.equals("+")) {
-							lngAddr = requestPos + lngIncr;
+
+				if (strAddr.length() > 0) {
+					strSign = strAddr.substring(0, 1);
+					if ((strSign.equals("+")) || (strSign.equals("-"))) {
+						strIncr = strAddr.substring(1, strAddr.length());
+						if (isInteger(strIncr)) {
+							lngIncr = Long.parseLong(strIncr);
+							if (strSign.equals("+")) {
+								lngAddr = requestPos + lngIncr;
+							} else {
+								lngAddr = requestPos - lngIncr;
+							}
+							if (lngAddr > (rafLen - requestPage)) {
+								lngAddr = rafLen - requestPage;
+							}
+							if (lngAddr < 0) {
+								lngAddr = 0;
+							}
+							requestPos = lngAddr;
+							display();
+							
 						} else {
-							lngAddr = requestPos - lngIncr;
 						}
+					} else
+					if (isInteger(strAddr)) {
+						lngAddr = Long.parseLong(strAddr);
 						if (lngAddr > (rafLen - requestPage)) {
 							lngAddr = rafLen - requestPage;
 						}
@@ -264,28 +300,15 @@ public class FileViewer extends JFrame {
 						}
 						requestPos = lngAddr;
 						display();
-						
-					} else {
-//						continue;
 					}
-				} else
-				if (isInteger(strAddr)) {
-					lngAddr = Long.parseLong(strAddr);
-					if (lngAddr > (rafLen - requestPage)) {
-						lngAddr = rafLen - requestPage;
-					}
-					if (lngAddr < 0) {
-						lngAddr = 0;
-					}
-					requestPos = lngAddr;
-					display();
 				}
+				
 			}
 		});
 		pnlNav.add(btnGoTo);
-
+		
 //----------------------------------------------------------------------------------------
-//										btnStart
+//		btnStart
 //------------------------------------------^^--------------------------------------------
 		btnStart.setEnabled(false);
 		btnStart.addActionListener(new ActionListener() {
@@ -295,9 +318,9 @@ public class FileViewer extends JFrame {
 			}
 		});
 		pnlNav.add(btnStart);
-
+		
 //----------------------------------------------------------------------------------------
-//										btnPageUp
+//		btnPageUp
 //------------------------------------------^^--------------------------------------------
 		btnPageUp.setEnabled(false);
 		btnPageUp.addActionListener(new ActionListener() {
@@ -310,9 +333,9 @@ public class FileViewer extends JFrame {
 			}
 		});
 		pnlNav.add(btnPageUp);
-
+		
 //----------------------------------------------------------------------------------------
-//										btnLineUp
+//		btnLineUp
 //------------------------------------------^^--------------------------------------------
 		btnLineUp.setEnabled(false);
 		btnLineUp.addActionListener(new ActionListener() {
@@ -325,9 +348,9 @@ public class FileViewer extends JFrame {
 			}
 		});
 		pnlNav.add(btnLineUp);
-
+		
 //----------------------------------------------------------------------------------------
-//										btnLineDown
+//												btnLineDown
 //------------------------------------------^^--------------------------------------------
 		btnLineDown.setEnabled(false);
 		btnLineDown.addActionListener(new ActionListener() {
@@ -343,9 +366,9 @@ public class FileViewer extends JFrame {
 			}
 		});
 		pnlNav.add(btnLineDown);
-
+		
 //----------------------------------------------------------------------------------------
-//										btnPageDown
+//		btnPageDown
 //------------------------------------------^^--------------------------------------------
 		btnPageDown.setEnabled(false);
 		btnPageDown.addActionListener(new ActionListener() {
@@ -361,9 +384,9 @@ public class FileViewer extends JFrame {
 			}
 		});
 		pnlNav.add(btnPageDown);
-
+		
 //----------------------------------------------------------------------------------------
-//										btnEnd
+//		btnEnd
 //------------------------------------------^^--------------------------------------------
 		btnEnd.setEnabled(false);
 		btnEnd.addActionListener(new ActionListener() {
@@ -376,87 +399,82 @@ public class FileViewer extends JFrame {
 			}
 		});
 		pnlNav.add(btnEnd);
-
+		
 //----------------------------------------------------------------------------------------
 //										position
 //------------------------------------------^^--------------------------------------------
 		JPanel pnlPostion = new JPanel();
-		pnlPostion.setLayout(new BorderLayout(2, 2));
+		pnlPostion.setPreferredSize(new Dimension(120, 330));
+		pnlPostion.setBorder(new LineBorder(new Color(0, 0, 0)));
+		contentPane.add(pnlPostion, BorderLayout.WEST);
+		pnlPostion.setLayout(new BorderLayout(0, 0));
+		
 		JLabel lblPosition = new JLabel("Position");
+		lblPosition.setVerticalAlignment(SwingConstants.TOP);
 		pnlPostion.add(lblPosition, BorderLayout.NORTH);
+		
 		taPosition.setFont(new Font("Courier New", Font.PLAIN, fntSzHex));
 		taPosition.setRows(requestRows);
 		taPosition.setColumns(12);
-		pnlPostion.add(taPosition);
-
+		pnlPostion.add(taPosition, BorderLayout.CENTER);
+		
+//========================================================================================
+		JPanel pnlData = new JPanel();
+		contentPane.add(pnlData, BorderLayout.CENTER);
+		pnlData.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));
+//		pnlData.addComponentListener(l);
+		
 //----------------------------------------------------------------------------------------
 //											hex
 //------------------------------------------^^--------------------------------------------
 		JPanel pnlHex = new JPanel();
-		pnlHex.setLayout(new BorderLayout(2, 2));
+		pnlHex.setPreferredSize(new Dimension(540, 330));
+		pnlHex.setBorder(new LineBorder(new Color(0, 0, 0)));
+		pnlData.add(pnlHex);
+		pnlHex.setLayout(new BorderLayout(0, 0));
+		
 		JLabel lblHex = new JLabel("Hex");
 		pnlHex.add(lblHex, BorderLayout.NORTH);
 		taHex.setFont(new Font("Courier New", Font.PLAIN, fntSzHex));
 		taHex.setRows(requestRows);
-		taHex.setColumns(54);
-		pnlHex.add(taHex);
+//		taHex.setColumns(54);
+		taHex.setColumns((int) (requestCols * 3.25));
+		
+		pnlHex.add(taHex, BorderLayout.CENTER);
 		
 //----------------------------------------------------------------------------------------
-//		utf-8
+//										pnlUtf8
 //------------------------------------------^^--------------------------------------------
-		Container pnlGraph = new Container();
-		pnlGraph.setLayout(new BorderLayout(2, 2));
+		JPanel pnlUtf8 = new JPanel();
+		pnlUtf8.setPreferredSize(new Dimension(320, 330));
+		pnlUtf8.setMinimumSize(new Dimension(40, 40));
+		pnlUtf8.setLayout(new BorderLayout(0, 0));
+		pnlUtf8.setBorder(new LineBorder(new Color(0, 0, 0)));
+		
+		JLabel lblUtf8 = new JLabel("UTF-8");
+		pnlUtf8.add(lblUtf8, BorderLayout.NORTH);
 	    cmpUtf8.setFont(fntUtf8);
-	    pnlGraph.setBackground(Color.WHITE);;
-	    pnlGraph.add(cmpUtf8);
-	    
-//----------------------------------------------------------------------------------------
-//		Horizontal
-//------------------------------------------^^--------------------------------------------
-		GroupLayout gl_contentPane = new GroupLayout(contentPane);
-		gl_contentPane.setHorizontalGroup(
-			gl_contentPane.createParallelGroup(Alignment.LEADING)
-				.addGroup(gl_contentPane.createSequentialGroup()
-					.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
-						.addGroup(gl_contentPane.createSequentialGroup()
-							.addContainerGap()
-							.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
-								.addComponent(pnlNav, GroupLayout.DEFAULT_SIZE, 857, Short.MAX_VALUE)
-								.addGroup(gl_contentPane.createSequentialGroup()
-									.addComponent(pnlPostion, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-									.addPreferredGap(ComponentPlacement.UNRELATED)
-									.addComponent(pnlHex, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-									.addGap(10)
-									.addComponent(pnlGraph, GroupLayout.DEFAULT_SIZE, 331, Short.MAX_VALUE))))
-						.addComponent(pnlFile, GroupLayout.DEFAULT_SIZE, 897, Short.MAX_VALUE))
-					.addContainerGap())
-		);
-//----------------------------------------------------------------------------------------
-//		Vertical
-//------------------------------------------^^--------------------------------------------
-		gl_contentPane.setVerticalGroup(
-			gl_contentPane.createParallelGroup(Alignment.LEADING)
-				.addGroup(gl_contentPane.createSequentialGroup()
-					.addComponent(pnlFile, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-					.addPreferredGap(ComponentPlacement.RELATED)
-					.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
-						.addGroup(gl_contentPane.createSequentialGroup()
-							.addGap(5)
-							.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
-								.addComponent(pnlHex, GroupLayout.DEFAULT_SIZE, 330, Short.MAX_VALUE)
-								.addComponent(pnlPostion, GroupLayout.DEFAULT_SIZE, 330, Short.MAX_VALUE)))
-						.addGroup(gl_contentPane.createSequentialGroup()
-							.addGap(23)
-							.addComponent(pnlGraph, GroupLayout.DEFAULT_SIZE, 312, Short.MAX_VALUE)))
-					.addPreferredGap(ComponentPlacement.UNRELATED)
-					.addComponent(pnlNav, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
-		);
+		JPanel panel = new JPanel();
+		panel.setPreferredSize(new Dimension(320, 320));
+		panel.setMinimumSize(new Dimension(40, 40));
+//		panel.setSize(200,200);
+//		pnlUtf8.setSize(200,200);
+//		cmpUtf8.setSize(200,200);
+		cmpUtf8.setPreferredSize(new Dimension(140, 50));
+		cmpUtf8.setPreferredSize(new Dimension(320, 320));
+		pnlUtf8.add(panel, BorderLayout.CENTER);
 		
-		contentPane.setLayout(gl_contentPane);
+//		JTextArea taUtf8 = new JTextArea();
+	    panel.setBackground(Color.WHITE);;
+//		pnlGraph.add(taUtf8, BorderLayout.CENTER);
+	    panel.add(cmpUtf8);
+		pnlData.add(pnlUtf8);
+		
 	}
 
+
 //****************************************************************************************
-//										display()
+//											display()
 //******************************************^^********************************************
 	public void display() {
 		int lineCnt = 0;
@@ -466,7 +484,6 @@ public class FileViewer extends JFrame {
 		int preBuffLen;
 		String strPos = "";
 		String strHex = "";
-//		int mainArrLen;
 		
 		readPos = Math.max(0, requestPos - buffLen);
 		preBuffLen = (int) (requestPos - readPos);
@@ -474,27 +491,25 @@ public class FileViewer extends JFrame {
 		if (readLen + readPos > rafLen) {
 			readLen = rafLen - readPos;
 		}
-//		readLen = Math.min((requestCols * requestRows) + (buffLen * 2), (rafLen - requestPos) );
-//		mainArrLen = (int) Math.min(readLen, rafLen);
 		byte[] rafArray = new byte[(int) readLen];
 		byte[] rowBytArr = new byte[requestCols];
 
 //----------------------------------------------------------------------------------------
-//								Initialize accumUtf8 array
+//									Initialize accumUtf8 array
 //------------------------------------------^^--------------------------------------------
 		for(int i = 0; i < requestRows; i++) {
 			strUtf8[i] = "";
 		}
 
 //----------------------------------------------------------------------------------------
-//										Read File
+//											Read File
 //------------------------------------------^^--------------------------------------------
 		rafArray = fileReader(raf, rafArray);
 		dispPos = requestPos;
 		inPos = 0;
 		
 //----------------------------------------------------------------------------------------
-//								Format strings for display
+//									Format strings for display
 //------------------------------------------^^--------------------------------------------
 		for (lineCnt = 0; lineCnt < requestRows; lineCnt++) {
 			for (int i = (int) (readPos - readPos); i < requestCols; i++) {
@@ -509,7 +524,7 @@ public class FileViewer extends JFrame {
 		strHex = strHex.substring(0,strHex.length() - 1);
 		
 //----------------------------------------------------------------------------------------
-//							Format strings for UTF-8  Display
+//								Format strings for UTF-8  Display
 //------------------------------------------^^--------------------------------------------
 		int dspIdx = 0;
 		String holdStr = "";
@@ -521,11 +536,11 @@ public class FileViewer extends JFrame {
 			readIdx += uc.consumes;
 			if (readIdx < (preBuffLen + 1 )) { continue; }
 			s = uc.character;
-//String a;
-//a = showUsYourBits(s);
-//if ((uc.consumes > 1) && (a.equalsIgnoreCase("0011 1111"))) {
-//	s = ".";
-//}
+String a;
+a = showUsYourBits(s);
+if ((uc.consumes > 1) && (a.equalsIgnoreCase("0011 1111"))) {
+	s = ".";
+}
 			dspIdx = readIdx - preBuffLen;
 			holdStr += s;
 			if (dspIdx < ((lineCnt + 1) * requestCols)) { continue; }
@@ -537,7 +552,7 @@ public class FileViewer extends JFrame {
 		}
 		
 //----------------------------------------------------------------------------------------
-//							move strings to the output screen
+//								move strings to the output screen
 //------------------------------------------^^--------------------------------------------
 		taPosition.setText(strPos);
 		taPosition.paintImmediately(0, 0, taPosition.getWidth(), taPosition.getHeight());
@@ -548,7 +563,7 @@ public class FileViewer extends JFrame {
 	}
 
 //****************************************************************************************
-//										fileReader()
+//											fileReader()
 //******************************************^^********************************************
 	public  byte[] fileReader(RandomAccessFile raf, byte[] inArray) {
 		int len1 = 0;
@@ -575,7 +590,7 @@ public class FileViewer extends JFrame {
 	}
 
 //****************************************************************************************
-//										bytesToHex()
+//											bytesToHex()
 //******************************************^^********************************************
 	public static String bytesToHex(byte[] bytes) {
 		final char[] hexArray = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
@@ -603,7 +618,7 @@ public class FileViewer extends JFrame {
 	}
 	
 //****************************************************************************************
-//										isInteger()
+//											isInteger()
 //******************************************^^********************************************
 	public static boolean isInteger(String str) {
 		try {
@@ -615,7 +630,7 @@ public class FileViewer extends JFrame {
 	}
 	
 //****************************************************************************************
-//											arrayPiece()
+//												arrayPiece()
 //******************************************^^********************************************
 	public static byte[] arrayPiece(byte[] inBytes, int copyStart, int copyLen) {
 		byte[] returnArray = new byte[1];
@@ -631,12 +646,12 @@ public class FileViewer extends JFrame {
 	}
 
 //****************************************************************************************
-//										dspBits()
-//	Constructs a String of 1's and 0's representing the bit pattern of the object.
-//	Accepts byte, char, int and long.
-//	Restrictions on which types can be used with bitwise operators prevents other object
-//		types from being available.  In particular, String, float, double and Object.
-//	I reverse the bytes because Intel has their expletive endians messed up.
+//											dspBits()
+//		Constructs a String of 1's and 0's representing the bit pattern of the object.
+//		Accepts byte, char, int and long.
+//		Restrictions on which types can be used with bitwise operators prevents other object
+//			types from being available.  In particular, String, float, double and Object.
+//		I reverse the bytes because Intel has their expletive endians messed up.
 //  Maybe it's not an endian problem.  Can'g get any value from second byte.
 //******************************************^^********************************************
 	public static String showUsYourBits(Object inObj) {
@@ -703,20 +718,24 @@ public class FileViewer extends JFrame {
 	}
 	
 //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-//										MyCanvas()
+//											MyCanvas()
 //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX^^XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	class GraphicsArea extends JComponent {
 		@Override
 		public void paintComponent(Graphics g) {
+	        super.paintComponent(g);            // call superclass to make panel display correctly
 			String tempStr;
 			int left, top, width, height;
 			left = 8;
 			top = -4;
-			width = (fntSzUtf8 + 2) * requestCols;
-			height = (fntSzUtf8 + 2) * requestRows;
+			height = 320;
+			width = 320;
+//			height = (fntSzUtf8 + 2) * requestRows;
+//			width = (fntSzUtf8 + 2) * requestCols;
 			g.setColor(Color.WHITE);
-			g.fillRect(left, top, width, height);
+//			setBackground(Color.RED);
 			g.setColor(Color.BLACK);
+			g.fillRect(left, top, width, height);
 			for (int i = 0; i < requestRows; i++) {
 				tempStr = strUtf8[i];
 				if (tempStr == null) { continue; }
@@ -726,16 +745,55 @@ public class FileViewer extends JFrame {
 			}
 		}
 	}
+
+//XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+//		DrawPanel
+//XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX^^XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+//	public class DrawPanel extends JPanel
+	public class GraphicsArea_1 extends JPanel
+		{
+		public GraphicsArea_1()							// set up graphics window
+			{
+			super();
+//			setBackground(Color.GREEN);
+			}
+		
+		public void paintComponent(Graphics g)		// draw graphics in the panel
+			{
+			int left, top, width, height;
+			left = 0;
+			top = -4;
+//			int width = getWidth();					// width of window in pixels
+//			int height = getHeight();				// height of window in pixels
+			height = (fntSzUtf8 + 2) * requestRows;
+			width = (fntSzUtf8 + 2) * requestCols;
+			g.fillRect(left, top, width, height);
+			super.paintComponent(g);				// call superclass to make panel display correctly
+			setBackground(Color.WHITE);
+			
+			String tempStr;
+			for (int i = 0; i < requestRows; i++) {
+				tempStr = strUtf8[i];
+				if (tempStr == null) { continue; }
+				for (int j = 0; j < tempStr.length(); j++) {
+					g.drawString(tempStr.substring(j, j+1), (j+1)*(fntSzUtf8+1), (i+1)*(fntSzUtf8+1)-4);
+				}
+			}
+			
+			
+			}
+	
+		}
 	
 //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-//									U t f 8 C h a r
+//										U t f 8 C h a r
 //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX^^XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	class Utf8Char{
 		String character;
 		int consumes;
 		
 //****************************************************************************************
-//										Utf8Char
+//											Utf8Char
 //******************************************^^********************************************
 		public Utf8Char(byte[] bytes, int startPos) {
 			int expectedLen;
@@ -744,7 +802,7 @@ public class FileViewer extends JFrame {
 			String display;
 			display = toBitString(bytes[startPos]);
 			
-//										Get Length
+//											Get Length
 //------------------------------------------^^--------------------------------------------
 			if		((bytes[startPos] & 0b10000000) == 0b00000000) expectedLen = 1;
 			else if ((bytes[startPos] & 0b11100000) == 0b11000000) expectedLen = 2;
@@ -762,7 +820,7 @@ public class FileViewer extends JFrame {
 				return;
 			}
 			
-//									Examine remaining bytes
+//										Examine remaining bytes
 //------------------------------------------^^--------------------------------------------
 			for (int i = 1; i < expectedLen; i++) {
 				if ((bytes[startPos + i] & 0b11000000) != 0b10000000) {
@@ -772,14 +830,14 @@ public class FileViewer extends JFrame {
 				}
 			}
 			
-//									Copy to shorter array
+//										Copy to shorter array
 //------------------------------------------^^--------------------------------------------
 			byte[] holdByte = new byte[expectedLen];
 			for (int i = 0; i < expectedLen; i++) {
 				holdByte[i] = bytes[startPos + i];
 			}
 			
-//										Get Value
+//											Get Value
 //------------------------------------------^^--------------------------------------------
 			holdStr = bytesToUtf8(holdByte) + "";
 			character = holdStr;
@@ -787,7 +845,7 @@ public class FileViewer extends JFrame {
 		}
 		
 //****************************************************************************************
-//										bytesToUtf8()
+//											bytesToUtf8()
 //******************************************^^********************************************
 		public String bytesToUtf8(byte[] bytes) {
 			String strOut = "";
@@ -801,7 +859,7 @@ public class FileViewer extends JFrame {
 		}
 		
 //****************************************************************************************
-//										toBitString()
+//											toBitString()
 //******************************************^^********************************************
 		public String toBitString(byte inByte) {
 			String str;
