@@ -6,14 +6,18 @@
 //	UTF-8.
 //
 //	Bugs:
+//	The Position panel is taller than the Hex or UTF-8 panels.
 //
 //
 //	Enhancements:
-//	Remember the last directory that the user opened and use that for starting point.
 //	Add support for UTF-16, etc.
 //	Add ability to resize window and the components will all resize appropriately.
-//	Add ability to select text from the screen.
 //	Grey out the unused right hand portion of the UTF-8 panel.
+//	Allow user to specify the encoding.
+//	Allow user to select a font.
+//	Support a .ini file to store user's choices.
+//	Remember the last directory that the user opened and use that for starting point.
+//	Add ability to select text from the screen.
 //	Add hex offset in to the file (the "position" in hex.)
 //	ALlow to enter hex address in the Go To field.
 //	Catch UTF-8 errors and display a period ('.').
@@ -22,16 +26,9 @@
 //		very large files will be slow, don't do it one character at a time.  Have a
 //		separate field where you type the text to be entered.  Program can then move every
 //		thing up length() bytes at once, rather than once for each byte.
-//	Allow user to specify the encoding.
-//	Allow user to select a font.
-//	Support a .ini file to srore user's choices.
 //
 //	Fixed:
-//	Navigate by increments +3, -127.  Say we know records are 127 bytes long, By putting
-//		+127 in the Goto field, and repetaedly pressing <Go To>, I can step throuth my
-//		file a record at a time.
-//	Disable resizeing window (for now);
-//	Grey out navigation controls until a file is opened.
+//	All three columns are now same height.
 //
 //	Other Windows:
 //	1 byte integer (signed and unsigned)
@@ -40,7 +37,7 @@
 //	8 byte integer (signed and unsigned)
 //	4 byte float
 //	8 byte float
-//	bit values
+//	Bit values
 //	Unicode Value if UTF-8, etc.
 //
 //
@@ -52,14 +49,14 @@
 //	Check IEEE to see other data formats that are defined especially timestamp or date.
 //		If they have defined date, that could be very useful.  When creating a string Java
 //		supports "US-ASCII", "ISO-8859-1" (Latin 1), "UTF-8", "UTR1116BE", "UTF-16LE" and
-//		"UTF-16".  Option to show bitpattern.
+//		"UTF-16".
 //	Maybe user selects a location in the hex or ascii portion and selects all the ways he
 //		wants the data beginning at that address to be displayed.
 //
 //	Comment:
 //		Using graphics to print the UTF-8.  I couldn't find a font that was, free,
 //			universal, monospace and contained the majority of the unicode characters.  I
-//			used Graphics in order to emulate a monospaced font.  That gave me a lot of
+//			used Graphics in order to emulate a monospaced font.  That gave me more
 //			freedom in choosing the font.
 //
 //		See http://www.programcreek.com/java-api-examples/java.nio.charset.CharsetDecoder
@@ -142,8 +139,7 @@ public class FileViewer extends JFrame {
 	private int requestPage = requestCols * requestRows;
 	Font fntUtf8 = new Font("Lucida", Font.PLAIN, fntSzUtf8);
 	String[] strUtf8 = new String[requestRows];
-//	GraphicsArea cmpUtf8 = new GraphicsArea();
-	GraphicsArea_1 cmpUtf8 = new GraphicsArea_1();
+	GraphicsArea cmpUtf8 = new GraphicsArea();
 
 //****************************************************************************************
 //											main
@@ -154,7 +150,7 @@ public class FileViewer extends JFrame {
 				try {
 					FileViewer frame = new FileViewer();
 					frame.setVisible(true);
-//					frame.setResizable(false);
+					frame.setResizable(false);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -175,8 +171,8 @@ public class FileViewer extends JFrame {
 
 		setTitle("File Viewer Utility");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-//		setBounds(100, 100, 504, 180);
 		setBounds(100, 100, 1033, 460);
+		setResizable(false);
 		contentPane = new JPanel();
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		contentPane.setLayout(new BorderLayout(0, 0));
@@ -403,10 +399,12 @@ public class FileViewer extends JFrame {
 //----------------------------------------------------------------------------------------
 //										position
 //------------------------------------------^^--------------------------------------------
+		JPanel pnlDummy = new JPanel();
+		contentPane.add(pnlDummy, BorderLayout.WEST);
 		JPanel pnlPostion = new JPanel();
 		pnlPostion.setPreferredSize(new Dimension(120, 330));
 		pnlPostion.setBorder(new LineBorder(new Color(0, 0, 0)));
-		contentPane.add(pnlPostion, BorderLayout.WEST);
+		pnlDummy.add(pnlPostion, BorderLayout.CENTER);
 		pnlPostion.setLayout(new BorderLayout(0, 0));
 		
 		JLabel lblPosition = new JLabel("Position");
@@ -422,7 +420,6 @@ public class FileViewer extends JFrame {
 		JPanel pnlData = new JPanel();
 		contentPane.add(pnlData, BorderLayout.CENTER);
 		pnlData.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));
-//		pnlData.addComponentListener(l);
 		
 //----------------------------------------------------------------------------------------
 //											hex
@@ -437,7 +434,6 @@ public class FileViewer extends JFrame {
 		pnlHex.add(lblHex, BorderLayout.NORTH);
 		taHex.setFont(new Font("Courier New", Font.PLAIN, fntSzHex));
 		taHex.setRows(requestRows);
-//		taHex.setColumns(54);
 		taHex.setColumns((int) (requestCols * 3.25));
 		
 		pnlHex.add(taHex, BorderLayout.CENTER);
@@ -457,16 +453,11 @@ public class FileViewer extends JFrame {
 		JPanel panel = new JPanel();
 		panel.setPreferredSize(new Dimension(320, 320));
 		panel.setMinimumSize(new Dimension(40, 40));
-//		panel.setSize(200,200);
-//		pnlUtf8.setSize(200,200);
-//		cmpUtf8.setSize(200,200);
 		cmpUtf8.setPreferredSize(new Dimension(140, 50));
 		cmpUtf8.setPreferredSize(new Dimension(320, 320));
 		pnlUtf8.add(panel, BorderLayout.CENTER);
 		
-//		JTextArea taUtf8 = new JTextArea();
 	    panel.setBackground(Color.WHITE);;
-//		pnlGraph.add(taUtf8, BorderLayout.CENTER);
 	    panel.add(cmpUtf8);
 		pnlData.add(pnlUtf8);
 		
@@ -650,9 +641,7 @@ if ((uc.consumes > 1) && (a.equalsIgnoreCase("0011 1111"))) {
 //		Constructs a String of 1's and 0's representing the bit pattern of the object.
 //		Accepts byte, char, int and long.
 //		Restrictions on which types can be used with bitwise operators prevents other object
-//			types from being available.  In particular, String, float, double and Object.
-//		I reverse the bytes because Intel has their expletive endians messed up.
-//  Maybe it's not an endian problem.  Can'g get any value from second byte.
+//			types from being available.  In particular float, double and Object.
 //******************************************^^********************************************
 	public static String showUsYourBits(Object inObj) {
 		String str = "";
@@ -718,44 +707,13 @@ if ((uc.consumes > 1) && (a.equalsIgnoreCase("0011 1111"))) {
 	}
 	
 //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-//											MyCanvas()
-//XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX^^XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	class GraphicsArea extends JComponent {
-		@Override
-		public void paintComponent(Graphics g) {
-	        super.paintComponent(g);            // call superclass to make panel display correctly
-			String tempStr;
-			int left, top, width, height;
-			left = 8;
-			top = -4;
-			height = 320;
-			width = 320;
-//			height = (fntSzUtf8 + 2) * requestRows;
-//			width = (fntSzUtf8 + 2) * requestCols;
-			g.setColor(Color.WHITE);
-//			setBackground(Color.RED);
-			g.setColor(Color.BLACK);
-			g.fillRect(left, top, width, height);
-			for (int i = 0; i < requestRows; i++) {
-				tempStr = strUtf8[i];
-				if (tempStr == null) { continue; }
-				for (int j = 0; j < tempStr.length(); j++) {
-					g.drawString(tempStr.substring(j, j+1), (j+1)*(fntSzUtf8+1), (i+1)*(fntSzUtf8+1)-4);
-				}
-			}
-		}
-	}
-
-//XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 //		DrawPanel
 //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX^^XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-//	public class DrawPanel extends JPanel
-	public class GraphicsArea_1 extends JPanel
+	public class GraphicsArea extends JPanel
 		{
-		public GraphicsArea_1()							// set up graphics window
+		public GraphicsArea()							// set up graphics window
 			{
 			super();
-//			setBackground(Color.GREEN);
 			}
 		
 		public void paintComponent(Graphics g)		// draw graphics in the panel
@@ -763,8 +721,8 @@ if ((uc.consumes > 1) && (a.equalsIgnoreCase("0011 1111"))) {
 			int left, top, width, height;
 			left = 0;
 			top = -4;
-//			int width = getWidth();					// width of window in pixels
-//			int height = getHeight();				// height of window in pixels
+			width = getWidth();						// width of window in pixels
+			height = getHeight();					// height of window in pixels
 			height = (fntSzUtf8 + 2) * requestRows;
 			width = (fntSzUtf8 + 2) * requestCols;
 			g.fillRect(left, top, width, height);
@@ -780,10 +738,9 @@ if ((uc.consumes > 1) && (a.equalsIgnoreCase("0011 1111"))) {
 				}
 			}
 			
-			
-			}
-	
 		}
+
+	}
 	
 //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 //										U t f 8 C h a r
@@ -837,7 +794,7 @@ if ((uc.consumes > 1) && (a.equalsIgnoreCase("0011 1111"))) {
 				holdByte[i] = bytes[startPos + i];
 			}
 			
-//											Get Value
+//										Get Value
 //------------------------------------------^^--------------------------------------------
 			holdStr = bytesToUtf8(holdByte) + "";
 			character = holdStr;
