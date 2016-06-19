@@ -5,15 +5,13 @@
 //	This is a stand-alone utility which displays the contents of a file in hex and in
 //	UTF-8.
 //
-//	Bugs:
-//	The Position panel is taller than the Hex or UTF-8 panels.
+//	Bugs to fix:
+//	If file shorter than fits on screen, should show nothing, not 0x00.
 //
-//
-//	Enhancements:
+//	Enhancements to make:
 //	Add support for UTF-16, etc.
 //	Add ability to resize window and the components will all resize appropriately.
 //	Grey out the unused right hand portion of the UTF-8 panel.
-//	Allow user to specify the encoding.
 //	Allow user to select a font.
 //	Support a .ini file to store user's choices.
 //	Remember the last directory that the user opened and use that for starting point.
@@ -28,7 +26,9 @@
 //		thing up length() bytes at once, rather than once for each byte.
 //
 //	Fixed:
-//	All three columns are now same height.
+//	Take <Browse> followed by <Cancel> gets error because it tried to substring the file
+//		name, but there wasn't any.
+//	If file is less than 256 in length, get error.
 //
 //	Other Windows:
 //	1 byte integer (signed and unsigned)
@@ -192,8 +192,10 @@ public class FileViewer extends JFrame {
 				fileDialog.setApproveButtonText("Select");
 				fileDialog.showOpenDialog(contentPane);
 				File openFile = fileDialog.getSelectedFile();
-				String path = openFile.getPath();
-				jFileName.setText(path);
+				if (openFile != null) {
+					String path = openFile.getPath();
+					jFileName.setText(path);
+				}
 			}
 		});
 		pnlFile.add(btnFileDlg);
@@ -463,7 +465,6 @@ public class FileViewer extends JFrame {
 		
 	}
 
-
 //****************************************************************************************
 //											display()
 //******************************************^^********************************************
@@ -483,7 +484,6 @@ public class FileViewer extends JFrame {
 			readLen = rafLen - readPos;
 		}
 		byte[] rafArray = new byte[(int) readLen];
-		byte[] rowBytArr = new byte[requestCols];
 
 //----------------------------------------------------------------------------------------
 //									Initialize accumUtf8 array
@@ -497,14 +497,19 @@ public class FileViewer extends JFrame {
 //------------------------------------------^^--------------------------------------------
 		rafArray = fileReader(raf, rafArray);
 		dispPos = requestPos;
-		inPos = 0;
 		
 //----------------------------------------------------------------------------------------
 //									Format strings for display
 //------------------------------------------^^--------------------------------------------
+		inPos = 0;
+		byte[] rowBytArr = new byte[requestCols];
 		for (lineCnt = 0; lineCnt < requestRows; lineCnt++) {
-			for (int i = (int) (readPos - readPos); i < requestCols; i++) {
-				rowBytArr[i] = rafArray[(int)inPos + i];
+			for (int i = 0; i < requestCols; i++) {
+				if (inPos +  i < readLen) {
+					rowBytArr[i] = rafArray[(int)inPos + i];
+				} else {
+					rowBytArr[i] = 0x00;
+				}
 			}
 			strPos += "" + formatter.format(dispPos) + "\n";
 			strHex += bytesToHex(rowBytArr) + "\n";
