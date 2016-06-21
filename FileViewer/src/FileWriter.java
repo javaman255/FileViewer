@@ -40,7 +40,7 @@ public class FileWriter {
 		int j = 0;
 
 		try {
-			for (i = 0x00; i < 0xff; i++) {
+			for (i = 0x00; i < 0x0100; i++) {
 				raf1.write(i);
 				for (j = 0x00; j < 0x0100; j++) {
 					raf2.write(i);
