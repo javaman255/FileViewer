@@ -6,15 +6,11 @@
  *	UTF-8.
  *
  *	Fixed:
- *	Take <Browse> followed by <Cancel> gets error because it tried to substring the file
- *		name, but there wasn't any.
- *	If file is less than 256 in length, get error.
- *	FileWriter was only writing 255 characters to test_8_bit.txt
- *	UTF-8 three byte characters always show 5 characters.  It is showing one too soon, 
- *		unless the first byte happens to be the first byte of a character.
+ *	Blew up opening file greater than 2GB.
+ *	Last few bytes in a file are sometimes not displayed in UTF-8.
+ *	If file shorter than fits on screen, should show nothing, not 0x00.
  *
  *	Bugs to fix:
- *	If file shorter than fits on screen, should show nothing, not 0x00.
  *	The File buttons have a different style than the navigation buttons.
  *
  *	Enhancements to make:
@@ -84,6 +80,8 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.io.UnsupportedEncodingException;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
@@ -236,6 +234,7 @@ public class FileViewer extends JFrame {
  *										tfAddress
  * -----------------------------------------^^----------------------------------------- */
 		tfAddress = new JTextField();
+		tfAddress.setToolTipText("Integer to move to specific position");
 		tfAddress.setFont(new Font("Courier New", Font.PLAIN, 12));
 		pnlNav.add(tfAddress);
 		tfAddress.setColumns(12);
@@ -300,6 +299,7 @@ public class FileViewer extends JFrame {
 /* ---------------------------------------------------------------------------------------
  *										btnStart
  * -----------------------------------------^^----------------------------------------- */
+		btnStart.setToolTipText("Beginning");
 		btnStart.setEnabled(false);
 		btnStart.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
@@ -312,6 +312,7 @@ public class FileViewer extends JFrame {
 /* ---------------------------------------------------------------------------------------
  *										btnPageUp
  * -----------------------------------------^^----------------------------------------- */
+		btnPageUp.setToolTipText("Page Back");
 		btnPageUp.setEnabled(false);
 		btnPageUp.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
@@ -327,6 +328,7 @@ public class FileViewer extends JFrame {
 /* ---------------------------------------------------------------------------------------
  *										btnLineUp
  * -----------------------------------------^^----------------------------------------- */
+		btnLineUp.setToolTipText("Line Back");
 		btnLineUp.setEnabled(false);
 		btnLineUp.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
@@ -342,6 +344,7 @@ public class FileViewer extends JFrame {
 /* ---------------------------------------------------------------------------------------
  *										btnLineDown
  * -----------------------------------------^^----------------------------------------- */
+		btnLineDown.setToolTipText("Line Forward");
 		btnLineDown.setEnabled(false);
 		btnLineDown.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
@@ -360,6 +363,7 @@ public class FileViewer extends JFrame {
 /* ---------------------------------------------------------------------------------------
  *										btnPageDown
  * -----------------------------------------^^----------------------------------------- */
+		btnPageDown.setToolTipText("Page Forward");
 		btnPageDown.setEnabled(false);
 		btnPageDown.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
@@ -378,6 +382,7 @@ public class FileViewer extends JFrame {
 /* ---------------------------------------------------------------------------------------
  *										btnEnd
  * -----------------------------------------^^----------------------------------------- */
+		btnEnd.setToolTipText("End");
 		btnEnd.setEnabled(false);
 		btnEnd.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
@@ -494,22 +499,28 @@ public class FileViewer extends JFrame {
  *								Format strings for display
  * -----------------------------------------^^----------------------------------------- */
 		inPos = 0;
-		byte[] rowBytArr = new byte[requestCols];
 		for (lineCnt = 0; lineCnt < requestRows; lineCnt++) {
+			List<Byte> rowByLst = new ArrayList<Byte>();
 			for (int i = 0; i < requestCols; i++) {
 				if (inPos +  i < readLen) {
-					rowBytArr[i] = rafArray[(int)inPos + i];
-				} else {
-					rowBytArr[i] = 0x00;
+					rowByLst.add(rafArray[(int)inPos + i]);
 				}
 			}
-			strPos += "" + formatter.format(dispPos) + "\n";
-			strHex += bytesToHex(rowBytArr) + "\n";
+			if (dispPos < rafLen) {
+				strPos += "" + formatter.format(dispPos) + "\n";
+			}
+			byte[] rowByArr = new byte[rowByLst.size()];
+			for (int i = 0; i < rowByArr.length; i++) {
+				rowByArr[i] = rowByLst.get(i);
+			}
+			strHex += bytesToHex(rowByArr) + "\n";
 			dispPos += requestCols;
 			inPos += requestCols;
 		}
-		strPos = strPos.substring(0,strPos.length() - 1);
-		strHex = strHex.substring(0,strHex.length() - 1);
+		if (strPos.length() > 1) {
+			strPos = strPos.substring(0, strPos.length() - 1);
+		}
+		strHex = strHex.substring(0, strHex.length() - 1);
 		
 /* ---------------------------------------------------------------------------------------
  *							Format strings for UTF-8  Display
@@ -536,6 +547,9 @@ public class FileViewer extends JFrame {
 			}
 			lineCnt++;
 		}
+  		if ((lineCnt < requestCols) && (holdStr.length()) > 0) {
+			strUtf8[lineCnt] = holdStr;
+  		}
 		
 /* ---------------------------------------------------------------------------------------
  *							move strings to the output screen
@@ -552,10 +566,10 @@ public class FileViewer extends JFrame {
  *										fileReader()
  * *****************************************^^***************************************** */
 	public  byte[] fileReader(RandomAccessFile raf, byte[] inArray) {
-		int len1 = 0;
-		int len2 = 0;
-		len1 = Math.min(inArray.length, (int) ((rafLen - readPos)));
-		byte[] outArray = new byte[len1];
+		long len1 = 0;
+		long len2 = 0;
+		len1 = Math.min(inArray.length, rafLen - readPos);
+		byte[] outArray = new byte[(int) len1];
 		
 		try {
 			raf.seek(readPos);
@@ -584,9 +598,9 @@ public class FileViewer extends JFrame {
 		int v;
 		int j;
 		for (j = 0; j < bytes.length; j++) {
-			v = bytes[j] & 0xFF;
+			v = bytes[j] & 0xFF;				// otherwise, it treats the byte as signed
 			hexChars[j * 2] = hexArray[v >>> 4];
-			hexChars[j * 2 + 1] = hexArray[v & 0x0F];
+			hexChars[(j * 2) + 1] = hexArray[v & 0x0F];
 		}
 		String str1 = new String(hexChars);
 		String str2 = "";
@@ -599,7 +613,9 @@ public class FileViewer extends JFrame {
 				}
 			}
 		}
-		str2 = str2.substring(0, str2.length() - 3);
+		if ((str2.length() > 2)  && (str2.substring(str2.length() - 3, str2.length()) == " . ")) {
+			str2 = str2.substring(0, str2.length() - 3);
+		}
 		return str2;
 	}
 	
@@ -652,7 +668,6 @@ public class FileViewer extends JFrame {
 					g.drawString(tempStr.substring(j, j+1), (j+1)*(fntSzUtf8+1), (i+1)*(fntSzUtf8+1)-4);
 				}
 			}
-			
 		}
 
 	}
@@ -709,13 +724,6 @@ public class FileViewer extends JFrame {
 /*										Get Value
  * -----------------------------------------^^----------------------------------------- */
 			holdStr = bytesToUtf8(holdByte) + "";
-//holdStr = "";
-//try {
-//	holdStr = new String(holdByte, "UTF-*");
-//} catch (UnsupportedEncodingException e) {
-//	// TODO Auto-generated catch block
-//	e.printStackTrace();
-//}
 			character = holdStr;
 			consumes = expectedLen;
 		}
@@ -725,10 +733,8 @@ public class FileViewer extends JFrame {
  * *****************************************^^***************************************** */
 		public String bytesToUtf8(byte[] bytes) {
 			String strOut = "";
-//			String strIn = "";
 			try {
 				strOut = new String(bytes, "UTF-8");
-//				strOut = strIn;
 			} catch (UnsupportedEncodingException e) {
 				e.printStackTrace();
 			}
