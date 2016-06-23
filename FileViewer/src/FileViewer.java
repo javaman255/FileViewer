@@ -6,9 +6,10 @@
  *	UTF-8.
  *
  *	Fixed:
- *	Blew up opening file greater than 2GB.
- *	Last few bytes in a file are sometimes not displayed in UTF-8.
- *	If file shorter than fits on screen, should show nothing, not 0x00.
+ *	Handle "File Not Found" condition
+ *	Provide a success / failure message on open
+ *	Clear out the display when you go to open a new file.
+ *	Display file length.
  *
  *	Bugs to fix:
  *	The File buttons have a different style than the navigation buttons.
@@ -95,6 +96,7 @@ import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
+import java.awt.Component;
 
 /* XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
  *										FileViewer
@@ -130,6 +132,8 @@ public class FileViewer extends JFrame {
 	private Font fntUtf8 = new Font("Lucida", Font.PLAIN, fntSzUtf8);
 	private String[] strUtf8 = new String[requestRows];
 	private GraphicsArea cmpUtf8 = new GraphicsArea();
+	private boolean blankItOut;
+	private DecimalFormat formatter = new DecimalFormat("#,##0");
 
 /* ***************************************************************************************
  *											main
@@ -175,32 +179,38 @@ public class FileViewer extends JFrame {
 /* ---------------------------------------------------------------------------------------
  *										btnFileDlg
  * -----------------------------------------^^----------------------------------------- */
-		JButton btnFileDlg = new JButton("Browse...");
-		btnFileDlg.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				final JFileChooser fileDialog = new JFileChooser();
-				fileDialog.setApproveButtonText("Select");
-				fileDialog.showOpenDialog(contentPane);
-				File openFile = fileDialog.getSelectedFile();
-				if (openFile != null) {
-					String path = openFile.getPath();
-					tfFileName.setText(path);
-				}
-			}
-		});
-		pnlFile.add(btnFileDlg);
-		
-		JLabel lblNewLabel = new JLabel("File Name");
-		pnlFile.add(lblNewLabel);
-		
-		tfFileName = new JTextField();
-		pnlFile.add(tfFileName);
-		tfFileName.setColumns(30);
 		
 /* ---------------------------------------------------------------------------------------
  *										btnOpen
  * -----------------------------------------^^----------------------------------------- */
+		pnlFile.setLayout(new BorderLayout(0, 0));
+		
+		JPanel panel_1 = new JPanel();
+		pnlFile.add(panel_1, BorderLayout.NORTH);
+		JButton btnFileDlg = new JButton("Browse...");
+		panel_1.add(btnFileDlg);
+		
+		JLabel lblNewLabel = new JLabel("File Name");
+		panel_1.add(lblNewLabel);
+		
+		tfFileName = new JTextField();
+		panel_1.add(tfFileName);
+		tfFileName.setColumns(30);
 		JButton btnOpen = new JButton("Open");
+		panel_1.add(btnOpen);
+		
+		JPanel panel_2 = new JPanel();
+		pnlFile.add(panel_2, BorderLayout.SOUTH);
+		
+		JLabel lblOpenMsg = new JLabel("   ");
+		panel_2.add(lblOpenMsg);
+		lblOpenMsg.setHorizontalAlignment(SwingConstants.CENTER);
+		lblOpenMsg.setAlignmentX(Component.CENTER_ALIGNMENT);
+		
+		JLabel lblFileLength = new JLabel("   ");
+		lblFileLength.setHorizontalAlignment(SwingConstants.CENTER);
+		lblFileLength.setAlignmentX(0.5f);
+		panel_2.add(lblFileLength);
 		btnOpen.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				String fromFile = tfFileName.getText();
@@ -210,8 +220,16 @@ public class FileViewer extends JFrame {
 				try {
 					raf = new RandomAccessFile(fromFile, "r");
 					rafLen = raf.length();
+					lblOpenMsg.setForeground(Color.BLACK);
+					lblOpenMsg.setText("Open Successful");
+					lblFileLength.setText(" --    File length = " + formatter.format(rafLen));
+					blankItOut = false;
 				} catch (IOException e1) {
-					e1.printStackTrace();
+					rafLen = 0;
+					lblOpenMsg.setForeground(Color.RED);
+					lblOpenMsg.setText("Open Failed");
+					lblFileLength.setText("");
+					blankItOut = true;
 				}
 				btnGoTo.setEnabled(true);
 				btnStart.setEnabled(true);
@@ -224,7 +242,18 @@ public class FileViewer extends JFrame {
 				display();
 			}
 		});
-		pnlFile.add(btnOpen);
+		btnFileDlg.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				final JFileChooser fileDialog = new JFileChooser();
+				fileDialog.setApproveButtonText("Select");
+				fileDialog.showOpenDialog(contentPane);
+				File openFile = fileDialog.getSelectedFile();
+				if (openFile != null) {
+					String path = openFile.getPath();
+					tfFileName.setText(path);
+				}
+			}
+		});
 		
 /* ==================================================================================== */
 		JPanel pnlNav = new JPanel();
@@ -467,7 +496,6 @@ public class FileViewer extends JFrame {
  * *****************************************^^***************************************** */
 	public void display() {
 		int lineCnt = 0;
-		DecimalFormat formatter = new DecimalFormat("#,##0");
 		long dispPos;
 		long inPos;
 		int preBuffLen;
@@ -634,21 +662,18 @@ public class FileViewer extends JFrame {
 /* XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
  *										DrawPanel
  * XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX^^XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX */
-	public class GraphicsArea extends JPanel
-		{
+	public class GraphicsArea extends JPanel {
 /* ***************************************************************************************
  *										GraphicsArea()
  * *****************************************^^***************************************** */
-		public GraphicsArea()							// set up graphics window
-			{
+		public GraphicsArea() {							// set up graphics window
 			super();
 			}
 		
 /* ***************************************************************************************
  *										paintComponent()
  * *****************************************^^***************************************** */
-		public void paintComponent(Graphics g)		// draw graphics in the panel
-			{
+		public void paintComponent(Graphics g) {		// draw graphics in the panel
 			int left, top, width, height;
 			left = 0;
 			top = -4;
@@ -658,7 +683,12 @@ public class FileViewer extends JFrame {
 			width = (fntSzUtf8 + 2) * requestCols;
 			g.fillRect(left, top, width, height);
 			super.paintComponent(g);				// call superclass to make panel display correctly
+			cmpUtf8.setForeground(Color.BLACK);
 			setBackground(Color.WHITE);
+
+			if (blankItOut == true) {
+				return;
+			}
 			
 			String tempStr;
 			for (int i = 0; i < requestRows; i++) {
