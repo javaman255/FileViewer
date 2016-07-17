@@ -6,20 +6,23 @@
  *	UTF-8.
  *
  *	Fixed:
- *	Handle "File Not Found" condition
- *	Provide a success / failure message on open
- *	Clear out the display when you go to open a new file.
- *	Display file length.
+ *	The bottom of the text boxes was cut off.
+ *	Need to better distinguish between a file that has been selected to open and one that
+ *		has been opened and is currently being displayed.
+ *	The grey vertical margins adjoining the text areas are not a uniform size.
+ *	Improved alignment of characters in UTF-8 display.
  *
  *	Bugs to fix:
- *	The File buttons have a different style than the navigation buttons.
+ *	The File buttons have a different style than the navigation buttons (not on mac).
+ *	Required JDK, not just JDE.
+ *	The vertical margins adjoining the text areas are still slightly off.
  *
  *	Enhancements to make:
+ *	Consider putting an elevvator on the side for navigation.
  *	Add support for UTF-16, etc.
- *	Display file size.
  *	Add ability to resize window and the components will all resize appropriately.
  *	Grey out the unused right hand portion of the UTF-8 panel.
- *	Allow user to select a font.
+ *	Allow user to select a font for each window.
  *	Support a .ini file to store user's choices.
  *	Remember the last directory that the user opened and use that for starting point.
  *	Add ability to select text from the screen.
@@ -105,6 +108,8 @@ public class FileViewer extends JFrame {
 
 	private JPanel contentPane;
 	private JTextField tfFileName;
+	private JLabel lblFileSelectedMsg = new JLabel("   ");
+	private JLabel lblFileOpenedMsg = new JLabel("   ");
 	private JTextArea taPosition = new JTextArea();
 	private JTextArea taHex = new JTextArea();
 	private JTextField tfAddress;
@@ -165,7 +170,7 @@ public class FileViewer extends JFrame {
 
 		setTitle("File Viewer Utility");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setBounds(100, 100, 1033, 460);
+		setBounds(100, 100, 1051, 494);
 		setResizable(false);
 		contentPane = new JPanel();
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
@@ -175,42 +180,34 @@ public class FileViewer extends JFrame {
 /* ==================================================================================== */
 		JPanel pnlFile = new JPanel();
 		contentPane.add(pnlFile, BorderLayout.NORTH);
-		
-/* ---------------------------------------------------------------------------------------
- *										btnFileDlg
- * -----------------------------------------^^----------------------------------------- */
-		
-/* ---------------------------------------------------------------------------------------
- *										btnOpen
- * -----------------------------------------^^----------------------------------------- */
 		pnlFile.setLayout(new BorderLayout(0, 0));
 		
-		JPanel panel_1 = new JPanel();
-		pnlFile.add(panel_1, BorderLayout.NORTH);
+		JPanel pnlOpen = new JPanel();
+		pnlFile.add(pnlOpen, BorderLayout.NORTH);
 		JButton btnFileDlg = new JButton("Browse...");
-		panel_1.add(btnFileDlg);
+		pnlOpen.add(btnFileDlg);
+		btnFileDlg.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				final JFileChooser fileDialog = new JFileChooser();
+				fileDialog.setApproveButtonText("Select");
+				fileDialog.showOpenDialog(contentPane);
+				File openFile = fileDialog.getSelectedFile();
+				if (openFile != null) {
+					String path = openFile.getPath();
+					tfFileName.setText(path);
+					lblFileSelectedMsg.setForeground(Color.BLACK);
+					lblFileSelectedMsg.setText("New file selected, but not opened.  Press the \"Open\" button to open the file.");
+				}
+			}
+		});
 		
-		JLabel lblNewLabel = new JLabel("File Name");
-		panel_1.add(lblNewLabel);
-		
+		JLabel lblFile = new JLabel("File Name");
+		pnlOpen.add(lblFile);
 		tfFileName = new JTextField();
-		panel_1.add(tfFileName);
+		pnlOpen.add(tfFileName);
 		tfFileName.setColumns(30);
 		JButton btnOpen = new JButton("Open");
-		panel_1.add(btnOpen);
-		
-		JPanel panel_2 = new JPanel();
-		pnlFile.add(panel_2, BorderLayout.SOUTH);
-		
-		JLabel lblOpenMsg = new JLabel("   ");
-		panel_2.add(lblOpenMsg);
-		lblOpenMsg.setHorizontalAlignment(SwingConstants.CENTER);
-		lblOpenMsg.setAlignmentX(Component.CENTER_ALIGNMENT);
-		
-		JLabel lblFileLength = new JLabel("   ");
-		lblFileLength.setHorizontalAlignment(SwingConstants.CENTER);
-		lblFileLength.setAlignmentX(0.5f);
-		panel_2.add(lblFileLength);
+		pnlOpen.add(btnOpen);
 		btnOpen.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				String fromFile = tfFileName.getText();
@@ -220,15 +217,15 @@ public class FileViewer extends JFrame {
 				try {
 					raf = new RandomAccessFile(fromFile, "r");
 					rafLen = raf.length();
-					lblOpenMsg.setForeground(Color.BLACK);
-					lblOpenMsg.setText("Open Successful");
-					lblFileLength.setText(" --    File length = " + formatter.format(rafLen));
+					lblFileOpenedMsg.setText("Displaying \"" + fromFile + "\": length = " + formatter.format(rafLen));
+					lblFileSelectedMsg.setForeground(Color.BLACK);
+					lblFileSelectedMsg.setText("    ");
 					blankItOut = false;
 				} catch (IOException e1) {
 					rafLen = 0;
-					lblOpenMsg.setForeground(Color.RED);
-					lblOpenMsg.setText("Open Failed");
-					lblFileLength.setText("");
+					lblFileSelectedMsg.setForeground(Color.RED);
+					lblFileSelectedMsg.setText("Open Failed");
+					lblFileOpenedMsg.setText("");
 					blankItOut = true;
 				}
 				btnGoTo.setEnabled(true);
@@ -242,18 +239,32 @@ public class FileViewer extends JFrame {
 				display();
 			}
 		});
-		btnFileDlg.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				final JFileChooser fileDialog = new JFileChooser();
-				fileDialog.setApproveButtonText("Select");
-				fileDialog.showOpenDialog(contentPane);
-				File openFile = fileDialog.getSelectedFile();
-				if (openFile != null) {
-					String path = openFile.getPath();
-					tfFileName.setText(path);
-				}
-			}
-		});
+		
+		JPanel panel = new JPanel();
+		pnlFile.add(panel, BorderLayout.CENTER);
+		panel.add(lblFileSelectedMsg);
+		lblFileSelectedMsg.setFont(new Font("Tahoma", Font.PLAIN, 11));
+		
+		lblFileSelectedMsg.setForeground(new Color(0, 0, 0));
+		lblFileSelectedMsg.setText("No file selected.");
+		lblFileSelectedMsg.setHorizontalAlignment(SwingConstants.CENTER);
+		lblFileSelectedMsg.setAlignmentX(Component.CENTER_ALIGNMENT);
+		
+/* ---------------------------------------------------------------------------------------
+ *										btnFileDlg
+ * -----------------------------------------^^----------------------------------------- */
+		
+/* ---------------------------------------------------------------------------------------
+ *										btnOpen
+ * -----------------------------------------^^----------------------------------------- */
+		
+		JPanel pnlStatus = new JPanel();
+		pnlFile.add(pnlStatus, BorderLayout.SOUTH);
+		lblFileOpenedMsg.setFont(new Font("Tahoma", Font.PLAIN, 11));
+		
+		lblFileOpenedMsg.setHorizontalAlignment(SwingConstants.CENTER);
+		lblFileOpenedMsg.setAlignmentX(0.5f);
+		pnlStatus.add(lblFileOpenedMsg);
 		
 /* ==================================================================================== */
 		JPanel pnlNav = new JPanel();
@@ -427,12 +438,17 @@ public class FileViewer extends JFrame {
 /* ---------------------------------------------------------------------------------------
  *										position
  * -----------------------------------------^^----------------------------------------- */
-		JPanel pnlDummy = new JPanel();
-		contentPane.add(pnlDummy, BorderLayout.WEST);
+		JPanel pnlWest = new JPanel();
+		contentPane.add(pnlWest, BorderLayout.WEST);
+		
+		JPanel pnlFiller_01 = new JPanel();
+		pnlFiller_01.setPreferredSize(new Dimension(1, 1));
+		pnlFiller_01.setMinimumSize(new Dimension(1, 1));
+		pnlWest.add(pnlFiller_01);
 		JPanel pnlPostion = new JPanel();
 		pnlPostion.setPreferredSize(new Dimension(120, 330));
 		pnlPostion.setBorder(new LineBorder(new Color(0, 0, 0)));
-		pnlDummy.add(pnlPostion, BorderLayout.CENTER);
+		pnlWest.add(pnlPostion, BorderLayout.CENTER);
 		pnlPostion.setLayout(new BorderLayout(0, 0));
 		
 		JLabel lblPosition = new JLabel("Position");
@@ -452,6 +468,11 @@ public class FileViewer extends JFrame {
 /* ---------------------------------------------------------------------------------------
  *											hex
  * -----------------------------------------^^----------------------------------------- */
+		
+		JPanel pnlFiller_02 = new JPanel();
+		pnlFiller_02.setPreferredSize(new Dimension(1, 1));
+		pnlFiller_02.setMinimumSize(new Dimension(1, 1));
+		pnlData.add(pnlFiller_02);
 		JPanel pnlHex = new JPanel();
 		pnlHex.setPreferredSize(new Dimension(540, 330));
 		pnlHex.setBorder(new LineBorder(new Color(0, 0, 0)));
@@ -478,17 +499,22 @@ public class FileViewer extends JFrame {
 		JLabel lblUtf8 = new JLabel("UTF-8");
 		pnlUtf8.add(lblUtf8, BorderLayout.NORTH);
 	    cmpUtf8.setFont(fntUtf8);
-		JPanel panel = new JPanel();
-		panel.setPreferredSize(new Dimension(320, 320));
-		panel.setMinimumSize(new Dimension(40, 40));
+		JPanel pnlGraphic = new JPanel();
+		pnlGraphic.setPreferredSize(new Dimension(320, 320));
+		pnlGraphic.setMinimumSize(new Dimension(40, 40));
 		cmpUtf8.setPreferredSize(new Dimension(140, 50));
 		cmpUtf8.setPreferredSize(new Dimension(320, 320));
-		pnlUtf8.add(panel, BorderLayout.CENTER);
+		pnlUtf8.add(pnlGraphic, BorderLayout.CENTER);
 		
-	    panel.setBackground(Color.WHITE);;
-	    panel.add(cmpUtf8);
+	    pnlGraphic.setBackground(Color.WHITE);;
+	    
+	    JPanel pnlFiller_03 = new JPanel();
+	    pnlFiller_03.setPreferredSize(new Dimension(6, 6));
+	    pnlFiller_03.setMinimumSize(new Dimension(6, 6));
+	    pnlData.add(pnlFiller_03);
+	    pnlGraphic.add(cmpUtf8);
 		pnlData.add(pnlUtf8);
-		
+
 	}
 
 /* ***************************************************************************************
@@ -695,7 +721,7 @@ public class FileViewer extends JFrame {
 				tempStr = strUtf8[i];
 				if (tempStr == null) { continue; }
 				for (int j = 0; j < tempStr.length(); j++) {
-					g.drawString(tempStr.substring(j, j+1), (j+1)*(fntSzUtf8+1), (i+1)*(fntSzUtf8+1)-4);
+					g.drawString(tempStr.substring(j, j+1), ((j+1)*(fntSzUtf8+1)) - 8, ((i+1)*(fntSzUtf8+1)) - 4);
 				}
 			}
 		}
