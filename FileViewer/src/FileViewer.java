@@ -6,11 +6,7 @@
  *	UTF-8.
  *
  *	Fixed:
- *	The bottom of the text boxes was cut off.
- *	Need to better distinguish between a file that has been selected to open and one that
- *		has been opened and is currently being displayed.
- *	The grey vertical margins adjoining the text areas are not a uniform size.
- *	Improved alignment of characters in UTF-8 display.
+ *	Upgrade tool tip for the goto Textbox to show +/= increments
  *
  *	Bugs to fix:
  *	The File buttons have a different style than the navigation buttons (not on mac).
@@ -274,7 +270,7 @@ public class FileViewer extends JFrame {
  *										tfAddress
  * -----------------------------------------^^----------------------------------------- */
 		tfAddress = new JTextField();
-		tfAddress.setToolTipText("Integer to move to specific position");
+		tfAddress.setToolTipText("Integer to move to specific position.  '+n' or '-n' for incremental move.");
 		tfAddress.setFont(new Font("Courier New", Font.PLAIN, 12));
 		pnlNav.add(tfAddress);
 		tfAddress.setColumns(12);
