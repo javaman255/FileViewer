@@ -7,6 +7,7 @@
  *
  *	Fixed:
  *	Upgrade tool tip for the goto Textbox to show +/= increments
+ *	Changed ActionListeners to lambdas.
  *
  *	Bugs to fix:
  *	The File buttons have a different style than the navigation buttons (not on mac).
@@ -14,7 +15,7 @@
  *	The vertical margins adjoining the text areas are still slightly off.
  *
  *	Enhancements to make:
- *	Consider putting an elevvator on the side for navigation.
+ *	Consider putting an elevator on the side for navigation.
  *	Add support for UTF-16, etc.
  *	Add ability to resize window and the components will all resize appropriately.
  *	Grey out the unused right hand portion of the UTF-8 panel.
@@ -23,7 +24,7 @@
  *	Remember the last directory that the user opened and use that for starting point.
  *	Add ability to select text from the screen.
  *	Add hex offset in to the file (the "position" in hex.)
- *	ALlow to enter hex address in the Go To field.
+ *	Allow to enter hex address in the Go To field.
  *	Catch UTF-8 errors and display a period ('.').
  *	Add a search function.
  *	Add ability to edit the file in hex, ASCII or UTF-8.  Inserts near the beginning of
@@ -73,8 +74,6 @@ import java.awt.EventQueue;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -182,18 +181,16 @@ public class FileViewer extends JFrame {
 		pnlFile.add(pnlOpen, BorderLayout.NORTH);
 		JButton btnFileDlg = new JButton("Browse...");
 		pnlOpen.add(btnFileDlg);
-		btnFileDlg.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				final JFileChooser fileDialog = new JFileChooser();
-				fileDialog.setApproveButtonText("Select");
-				fileDialog.showOpenDialog(contentPane);
-				File openFile = fileDialog.getSelectedFile();
-				if (openFile != null) {
-					String path = openFile.getPath();
-					tfFileName.setText(path);
-					lblFileSelectedMsg.setForeground(Color.BLACK);
-					lblFileSelectedMsg.setText("New file selected, but not opened.  Press the \"Open\" button to open the file.");
-				}
+		btnFileDlg.addActionListener((e) -> {
+			final JFileChooser fileDialog = new JFileChooser();
+			fileDialog.setApproveButtonText("Select");
+			fileDialog.showOpenDialog(contentPane);
+			File openFile = fileDialog.getSelectedFile();
+			if (openFile != null) {
+				String path = openFile.getPath();
+				tfFileName.setText(path);
+				lblFileSelectedMsg.setForeground(Color.BLACK);
+				lblFileSelectedMsg.setText("New file selected, but not opened.  Press the \"Open\" button to open the file.");
 			}
 		});
 		
@@ -204,36 +201,34 @@ public class FileViewer extends JFrame {
 		tfFileName.setColumns(30);
 		JButton btnOpen = new JButton("Open");
 		pnlOpen.add(btnOpen);
-		btnOpen.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				String fromFile = tfFileName.getText();
-				if (fromFile.isEmpty()) {
-					return;
-				}
-				try {
-					raf = new RandomAccessFile(fromFile, "r");
-					rafLen = raf.length();
-					lblFileOpenedMsg.setText("Displaying \"" + fromFile + "\": length = " + formatter.format(rafLen));
-					lblFileSelectedMsg.setForeground(Color.BLACK);
-					lblFileSelectedMsg.setText("    ");
-					blankItOut = false;
-				} catch (IOException e1) {
-					rafLen = 0;
-					lblFileSelectedMsg.setForeground(Color.RED);
-					lblFileSelectedMsg.setText("Open Failed");
-					lblFileOpenedMsg.setText("");
-					blankItOut = true;
-				}
-				btnGoTo.setEnabled(true);
-				btnStart.setEnabled(true);
-				btnPageUp.setEnabled(true);
-				btnLineUp.setEnabled(true);
-				btnLineDown.setEnabled(true);
-				btnPageDown.setEnabled(true);
-				btnEnd.setEnabled(true);
-				requestPos = 0;
-				display();
+		btnOpen.addActionListener((e) -> {
+			String fromFile = tfFileName.getText();
+			if (fromFile.isEmpty()) {
+				return;
 			}
+			try {
+				raf = new RandomAccessFile(fromFile, "r");
+				rafLen = raf.length();
+				lblFileOpenedMsg.setText("Displaying \"" + fromFile + "\": length = " + formatter.format(rafLen));
+				lblFileSelectedMsg.setForeground(Color.BLACK);
+				lblFileSelectedMsg.setText("    ");
+				blankItOut = false;
+			} catch (IOException e1) {
+				rafLen = 0;
+				lblFileSelectedMsg.setForeground(Color.RED);
+				lblFileSelectedMsg.setText("Open Failed");
+				lblFileOpenedMsg.setText("");
+				blankItOut = true;
+			}
+			btnGoTo.setEnabled(true);
+			btnStart.setEnabled(true);
+			btnPageUp.setEnabled(true);
+			btnLineUp.setEnabled(true);
+			btnLineDown.setEnabled(true);
+			btnPageDown.setEnabled(true);
+			btnEnd.setEnabled(true);
+			requestPos = 0;
+			display();
 		});
 		
 		JPanel panel = new JPanel();
@@ -279,44 +274,29 @@ public class FileViewer extends JFrame {
  *										btnGoTo
  * -----------------------------------------^^----------------------------------------- */
 		btnGoTo.setEnabled(false);
-		btnGoTo.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent arg0) {
-				long lngAddr;
-				
-				String strSign;
-				String strIncr;
-				long lngIncr;
-				
-				String strAddr = "";
-				strAddr = tfAddress.getText();
-				strAddr = strAddr.trim();
-				strAddr = strAddr.replace(",", "");
+		btnGoTo.addActionListener((arg0) -> {
+			long lngAddr;
+			
+			String strSign;
+			String strIncr;
+			long lngIncr;
+			
+			String strAddr = "";
+			strAddr = tfAddress.getText();
+			strAddr = strAddr.trim();
+			strAddr = strAddr.replace(",", "");
 
-				if (strAddr.length() > 0) {
-					strSign = strAddr.substring(0, 1);
-					if ((strSign.equals("+")) || (strSign.equals("-"))) {
-						strIncr = strAddr.substring(1, strAddr.length());
-						if (isInteger(strIncr)) {
-							lngIncr = Long.parseLong(strIncr);
-							if (strSign.equals("+")) {
-								lngAddr = requestPos + lngIncr;
-							} else {
-								lngAddr = requestPos - lngIncr;
-							}
-							if (lngAddr > (rafLen - requestPage)) {
-								lngAddr = rafLen - requestPage;
-							}
-							if (lngAddr < 0) {
-								lngAddr = 0;
-							}
-							requestPos = lngAddr;
-							display();
-							
+			if (strAddr.length() > 0) {
+				strSign = strAddr.substring(0, 1);
+				if ((strSign.equals("+")) || (strSign.equals("-"))) {
+					strIncr = strAddr.substring(1, strAddr.length());
+					if (isInteger(strIncr)) {
+						lngIncr = Long.parseLong(strIncr);
+						if (strSign.equals("+")) {
+							lngAddr = requestPos + lngIncr;
 						} else {
+							lngAddr = requestPos - lngIncr;
 						}
-					} else
-					if (isInteger(strAddr)) {
-						lngAddr = Long.parseLong(strAddr);
 						if (lngAddr > (rafLen - requestPage)) {
 							lngAddr = rafLen - requestPage;
 						}
@@ -325,9 +305,20 @@ public class FileViewer extends JFrame {
 						}
 						requestPos = lngAddr;
 						display();
+					} else {
 					}
+				} else
+				if (isInteger(strAddr)) {
+					lngAddr = Long.parseLong(strAddr);
+					if (lngAddr > (rafLen - requestPage)) {
+						lngAddr = rafLen - requestPage;
+					}
+					if (lngAddr < 0) {
+						lngAddr = 0;
+					}
+					requestPos = lngAddr;
+					display();
 				}
-				
 			}
 		});
 		pnlNav.add(btnGoTo);
@@ -337,11 +328,9 @@ public class FileViewer extends JFrame {
  * -----------------------------------------^^----------------------------------------- */
 		btnStart.setToolTipText("Beginning");
 		btnStart.setEnabled(false);
-		btnStart.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent arg0) {
-				requestPos = 0;
-				display();
-			}
+		btnStart.addActionListener((arg0) -> {
+			requestPos = 0;
+			display();
 		});
 		pnlNav.add(btnStart);
 		
@@ -350,14 +339,12 @@ public class FileViewer extends JFrame {
  * -----------------------------------------^^----------------------------------------- */
 		btnPageUp.setToolTipText("Page Back");
 		btnPageUp.setEnabled(false);
-		btnPageUp.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent arg0) {
-				requestPos -= requestPage;
-				if (requestPos < 0) {
-					requestPos = 0;
-				}
-				display();
+		btnPageUp.addActionListener((arg0) -> {
+			requestPos -= requestPage;
+			if (requestPos < 0) {
+				requestPos = 0;
 			}
+			display();
 		});
 		pnlNav.add(btnPageUp);
 		
@@ -366,14 +353,12 @@ public class FileViewer extends JFrame {
  * -----------------------------------------^^----------------------------------------- */
 		btnLineUp.setToolTipText("Line Back");
 		btnLineUp.setEnabled(false);
-		btnLineUp.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent arg0) {
-				requestPos -= requestCols;
-				if (requestPos < 0) {
-					requestPos = 0;
-				}
-				display();
+		btnLineUp.addActionListener((arg0) -> {
+			requestPos -= requestCols;
+			if (requestPos < 0) {
+				requestPos = 0;
 			}
+			display();
 		});
 		pnlNav.add(btnLineUp);
 		
@@ -382,17 +367,15 @@ public class FileViewer extends JFrame {
  * -----------------------------------------^^----------------------------------------- */
 		btnLineDown.setToolTipText("Line Forward");
 		btnLineDown.setEnabled(false);
-		btnLineDown.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent arg0) {
-				requestPos += requestCols;
-				if (requestPos > (rafLen - requestPage)) {
-					requestPos = rafLen - requestPage;
-				}
-				if (requestPos < 0) {
-					requestPos = 0;
-				}
-				display();
+		btnLineDown.addActionListener((arg0) -> {
+			requestPos += requestCols;
+			if (requestPos > (rafLen - requestPage)) {
+				requestPos = rafLen - requestPage;
 			}
+			if (requestPos < 0) {
+				requestPos = 0;
+			}
+			display();
 		});
 		pnlNav.add(btnLineDown);
 		
@@ -401,17 +384,15 @@ public class FileViewer extends JFrame {
  * -----------------------------------------^^----------------------------------------- */
 		btnPageDown.setToolTipText("Page Forward");
 		btnPageDown.setEnabled(false);
-		btnPageDown.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent arg0) {
-				requestPos += requestPage;
-				if (requestPos > (rafLen - requestPage)) {
-					requestPos = rafLen - requestPage;
-				}
-				if (requestPos < 0) {
-					requestPos = 0;
-				}
-				display();
+		btnPageDown.addActionListener((arg0) -> {
+			requestPos += requestPage;
+			if (requestPos > (rafLen - requestPage)) {
+				requestPos = rafLen - requestPage;
 			}
+			if (requestPos < 0) {
+				requestPos = 0;
+			}
+			display();
 		});
 		pnlNav.add(btnPageDown);
 		
@@ -420,14 +401,12 @@ public class FileViewer extends JFrame {
  * -----------------------------------------^^----------------------------------------- */
 		btnEnd.setToolTipText("End");
 		btnEnd.setEnabled(false);
-		btnEnd.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent arg0) {
-				requestPos = rafLen - requestPage;
-				if (requestPos < 0) {
-					requestPos = 0;
-				}
-				display();
+		btnEnd.addActionListener((arg0) -> {
+			requestPos = rafLen - requestPage;
+			if (requestPos < 0) {
+				requestPos = 0;
 			}
+			display();
 		});
 		pnlNav.add(btnEnd);
 		
